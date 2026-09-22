@@ -1,147 +1,1267 @@
 ﻿<!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full bg-[#0d0f17] text-slate-200">
 <head>
-    <meta charset="UTF-8">
-    <title>Digital Twin - Plano Interactivo UniFi/AD</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapeo de Infraestructura Interactiva - ISO 27001</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #11131f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2a2e45;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b4263;
+    }
+
+    /* Hotspot Interactive Styling */
+    .floorplan-container {
+      position: relative;
+      user-select: none;
+    }
+
+    .box-hotspot {
+      position: absolute;
+      box-sizing: border-box;
+      border: 1.5px solid rgba(14, 165, 233, 0.8);
+      background-color: rgba(14, 165, 233, 0.15);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+      overflow: hidden;
+      box-shadow: 0 0 4px rgba(14, 165, 233, 0.2);
+    }
+
+    .box-hotspot:hover {
+      border-color: #38bdf8;
+      background-color: rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+      z-index: 20;
+    }
+
+    .box-hotspot.selected {
+      border-color: #f59e0b !important;
+      background-color: rgba(245, 158, 11, 0.3) !important;
+      color: #fbbf24 !important;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.7) !important;
+      z-index: 30;
+    }
+
+    .box-hotspot.status-active {
+      border-color: rgba(34, 197, 94, 0.8);
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+    }
+
+    .box-hotspot.status-warning {
+      border-color: rgba(234, 179, 8, 0.8);
+      background-color: rgba(234, 179, 8, 0.15);
+      color: #facc15;
+    }
+
+    .box-hotspot.status-danger {
+      border-color: rgba(239, 68, 68, 0.8);
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    /* Calibrator Handles */
+    .calibration-active .box-hotspot {
+      cursor: move;
+    }
+    
+    .resize-handle {
+      display: none;
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: #f59e0b;
+      border: 1px solid #fff;
+      border-radius: 2px;
+      right: -4px;
+      bottom: -4px;
+      cursor: se-resize;
+    }
+
+    .calibration-active .box-hotspot.selected .resize-handle {
+      display: block;
+    }
+
+    /* Status LED indicators */
+    .led-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .led-green { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .led-yellow { background-color: #eab308; box-shadow: 0 0 8px #eab308; }
+    .led-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+  </style>
 </head>
-<body>
-    <header class="app-header">
-        <nav class="app-tabs" aria-label="Secciones de la aplicación">
-            <button class="tab-button active" type="button" data-view="map-view">&#128506;&#65039; Plano Interactivo</button>
-            <button class="tab-button" type="button" data-view="merge-view">&#128202; Data Merge (Pre-Check)</button>
-        </nav>
-    </header>
+<body class="h-full flex flex-col bg-[#0d0f17] text-slate-200 overflow-hidden">
 
-    <main id="app-content">
-        <section id="map-view" class="view-section active-view">
-            <div id="map-container">
-                <header>
-                    <h2>Plano Interactivo - Control de Activos</h2>
-                    <label for="floor-selector">Piso:</label>
-                    <select id="floor-selector">
-                        <option value="5">Piso 5</option>
-                        <option value="17">Piso 17</option>
-                    </select>
-                    <label class="calibration-toggle" for="calibration-mode">
-                        <input id="calibration-mode" type="checkbox">
-                        <span>Modo calibración</span>
-                    </label>
-                </header>
-                <div id="map-wrapper">
-                    <!-- Planos de planta almacenados en assets/images/ -->
-                    <img id="map-image" src="assets/images/PISO 5.jpg" alt="Plano de Planta">
-                    <output id="calibration-output" class="calibration-output" hidden></output>
-                </div>
-            </div>
+  <!-- Top Navigation Header -->
+  <header class="h-14 border-b border-slate-800 bg-[#131622] px-6 flex items-center justify-between shrink-0 z-40">
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 text-cyan-400 font-bold text-lg">
+        <i class="fa-solid fa-network-wired text-xl"></i>
+        <span class="tracking-wide">TANDEM <span class="text-xs font-normal px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/50">ISO 27001</span></span>
+      </div>
+      <span class="text-slate-600">|</span>
+      <span class="text-xs text-slate-400 font-mono">Control de Infraestructura y Mapeo Físico</span>
+    </div>
 
-            <aside id="sidebar">
-                <h3>&#128205; Información del Puesto</h3>
-                <p style="color: #aaa; font-size: 13px;">Hacé clic en cualquier box para gestionar sus datos.</p>
+    <!-- Mode Navigation Tabs -->
+    <nav class="flex space-x-1 bg-[#0b0d14] p-1 rounded-lg border border-slate-800">
+      <button id="tab-plano-btn" onclick="switchTab('plano')" class="px-4 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-cyan-600 text-white shadow-sm flex items-center gap-2">
+        <i class="fa-solid fa-map-location-dot"></i> Plano Interactivo
+      </button>
+      <button id="tab-merge-btn" onclick="switchTab('merge')" class="px-4 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 transition-all duration-200 flex items-center gap-2">
+        <i class="fa-solid fa-diagram-project"></i> Data Merge (Pre-Check)
+      </button>
+      <button id="tab-json-btn" onclick="switchTab('json')" class="px-4 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 transition-all duration-200 flex items-center gap-2">
+        <i class="fa-solid fa-code"></i> JSON Data Manager
+      </button>
+    </nav>
+
+    <!-- Global Actions -->
+    <div class="flex items-center space-x-3">
+      <button onclick="openPs1Modal()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-2 transition-all">
+        <i class="fa-solid fa-bolt text-emerald-400"></i> Generar Script PowerShell (.ps1)
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 relative overflow-hidden flex flex-col">
+
+    <!-- ==================== VIEW 1: PLANO INTERACTIVO ==================== -->
+    <div id="view-plano" class="flex-1 flex flex-col h-full overflow-hidden">
+      
+      <!-- Hotspot Management Control Bar (Above Floorplan) -->
+      <div class="bg-[#131622] border-b border-slate-800 p-3 px-6 flex flex-wrap items-center justify-between gap-4 z-30">
+        <!-- Left: Floor selector & Hotspot Creators -->
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <label class="text-xs text-slate-400 font-medium">Piso Actual:</label>
+            <select id="floor-select" onchange="changeFloor(this.value)" class="bg-[#1a1e2e] text-slate-200 text-xs font-semibold rounded-md border border-slate-700 px-3 py-1.5 focus:outline-none focus:border-cyan-500">
+              <option value="Piso 5">Piso 5 - Planta 25 de Mayo</option>
+              <option value="Piso 17">Piso 17 - Edificio del Sur</option>
+            </select>
+          </div>
+
+          <div class="h-5 w-px bg-slate-800"></div>
+
+          <!-- Hotspot Actions -->
+          <div class="flex items-center space-x-2">
+            <button onclick="addNewHotspot()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all shadow-sm">
+              <i class="fa-solid fa-plus"></i> Nuevo Box
+            </button>
+            <button id="btn-edit-selected" onclick="toggleEditModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all disabled:opacity-40" disabled>
+              <i class="fa-solid fa-pen-to-square"></i> Editar Seleccionado
+            </button>
+            <button id="btn-delete-selected" onclick="deleteSelectedHotspot()" class="bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all disabled:opacity-40" disabled>
+              <i class="fa-solid fa-trash-can"></i> Eliminar
+            </button>
+          </div>
+        </div>
+
+        <!-- Center: Calibrator Mode Switch -->
+        <div class="flex items-center bg-[#0b0d14] border border-slate-800 px-3 py-1 rounded-lg">
+          <label class="relative inline-flex items-center cursor-pointer mr-2">
+            <input type="checkbox" id="calibration-toggle" onchange="toggleCalibrationMode(this.checked)" class="sr-only peer">
+            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+          </label>
+          <span class="text-xs font-semibold text-slate-300">Modo Ajuste Físico <span class="text-[10px] text-amber-400 font-mono font-normal">(Arrastrar / Redimensionar)</span></span>
+        </div>
+
+        <!-- Right: Info Summary Badge -->
+        <div class="text-xs text-slate-400 flex items-center gap-3">
+          <span>Totales Piso: <strong id="total-floor-boxes" class="text-cyan-400 font-mono">0</strong> boxes</span>
+          <span class="text-slate-600">•</span>
+          <span>Seleccionado: <strong id="selected-box-name" class="text-amber-400 font-mono">Ninguno</strong></span>
+        </div>
+      </div>
+
+      <!-- Interactive Map Content & Lateral Sidebar -->
+      <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Interactive Floor Plan Area -->
+        <div class="flex-1 bg-[#0b0d14] p-4 flex items-center justify-center overflow-auto relative">
+          <div id="floorplan-wrapper" class="relative inline-block border border-slate-800 rounded-lg shadow-2xl overflow-hidden bg-slate-900">
+            <!-- Simulated Architectural Floorplan SVG/Canvas Image -->
+            <svg id="svg-floorplan" width="900" height="520" viewBox="0 0 900 520" class="block w-full h-auto max-w-[1100px] select-none">
+              <!-- Background Floor Canvas Grid -->
+              <rect width="900" height="520" fill="#11131f"/>
+              <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1a1d2e" stroke-width="1"/>
+              </pattern>
+              <rect width="900" height="520" fill="url(#grid)"/>
+
+              <!-- FLOOR 5 SVG ILLUSTRATION -->
+              <g id="svg-piso-5">
+                <!-- Perimeter Walls -->
+                <rect x="20" y="20" width="860" height="480" fill="none" stroke="#333752" stroke-width="4" rx="4"/>
                 
-                <div class="card" id="info-card" style="display: none;">
-                    <div class="form-group">
-                        <label>Ubicación / Box:</label>
-                        <input type="text" id="box-id" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Hostname Actual (AD):</label>
-                        <input type="text" id="hostname-actual" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Nuevo Hostname Propuesto:</label>
-                        <input type="text" id="hostname-nuevo">
-                    </div>
-                    <div class="form-group">
-                        <label>Dirección IP (UniFi):</label>
-                        <input type="text" id="ip-address" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Switch &amp; Puerto:</label>
-                        <input type="text" id="switch-port" readonly>
-                    </div>
-                    <div class="form-group">
-                        <label>Estado de Diagnóstico:</label>
-                        <input type="text" id="status-diag" readonly>
-                    </div>
-                    <button onclick="guardarCambio()">&#128190; Guardar Cambio Local</button>
-                </div>
+                <!-- Meeting Room Left -->
+                <rect x="20" y="20" width="160" height="180" fill="#161929" stroke="#333752" stroke-width="2"/>
+                <text x="100" y="100" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">SALA DE REUNIONES</text>
+                
+                <!-- RRHH / Break Rooms -->
+                <rect x="20" y="200" width="160" height="140" fill="#161929" stroke="#333752" stroke-width="2"/>
+                <text x="100" y="270" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">RRHH / OFICINA</text>
 
-                <div style="margin-top: auto;">
-                    <button style="background: #28a745; color: #fff;" onclick="generarPowerShell()">&#9889; Generar Script PowerShell (.ps1)</button>
-                </div>
-            </aside>
-        </section>
+                <rect x="20" y="340" width="160" height="160" fill="#161929" stroke="#333752" stroke-width="2"/>
+                <text x="100" y="420" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">SALA BREAK</text>
 
-        <section id="merge-view" class="view-section" hidden>
-            <div class="merge-header">
+                <!-- Elevators & Restrooms Block -->
+                <rect x="280" y="340" width="300" height="160" fill="#161929" stroke="#333752" stroke-width="2"/>
+                <text x="430" y="420" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">ASCENSORES / BAÑOS</text>
+
+                <!-- Desk Rows Layouts (Representative Box Shapes) -->
+                <!-- Column 1 -->
+                <g fill="#1a1e30" stroke="#2d334d" stroke-width="1.5">
+                  <rect x="210" y="40" width="70" height="220" rx="2"/>
+                  <line x1="245" y1="40" x2="245" y2="260"/>
+                  <!-- Row lines -->
+                  <line x1="210" y1="84" x2="280" y2="84"/>
+                  <line x1="210" y1="128" x2="280" y2="128"/>
+                  <line x1="210" y1="172" x2="280" y2="172"/>
+                  <line x1="210" y1="216" x2="280" y2="216"/>
+
+                  <!-- Column 2 -->
+                  <rect x="320" y="40" width="70" height="220" rx="2"/>
+                  <line x1="355" y1="40" x2="355" y2="260"/>
+                  <line x1="320" y1="84" x2="390" y2="84"/>
+                  <line x1="320" y1="128" x2="390" y2="128"/>
+                  <line x1="320" y1="172" x2="390" y2="172"/>
+                  <line x1="320" y1="216" x2="390" y2="216"/>
+
+                  <!-- Column 3 -->
+                  <rect x="430" y="40" width="70" height="220" rx="2"/>
+                  <line x1="465" y1="40" x2="465" y2="260"/>
+                  <line x1="430" y1="84" x2="500" y2="84"/>
+                  <line x1="430" y1="128" x2="500" y2="128"/>
+                  <line x1="430" y1="172" x2="500" y2="172"/>
+                  <line x1="430" y1="216" x2="500" y2="216"/>
+
+                  <!-- Column 4 Right -->
+                  <rect x="540" y="40" width="70" height="260" rx="2"/>
+                  <line x1="575" y1="40" x2="575" y2="300"/>
+
+                  <!-- East Desk Cluster -->
+                  <rect x="680" y="50" width="160" height="80" rx="2"/>
+                  <rect x="680" y="180" width="160" height="100" rx="2"/>
+                  <rect x="680" y="320" width="160" height="100" rx="2"/>
+                </g>
+              </g>
+
+              <!-- FLOOR 17 SVG ILLUSTRATION -->
+              <g id="svg-piso-17" class="hidden">
+                <rect x="20" y="20" width="860" height="480" fill="none" stroke="#333752" stroke-width="4" rx="4"/>
+                <rect x="20" y="20" width="160" height="160" fill="#161929" stroke="#333752" stroke-width="2"/>
+                <text x="100" y="100" fill="#475569" font-size="12" text-anchor="middle" font-weight="bold">SALA DE CONFERENCIAS</text>
+
+                <!-- Data Center Block -->
+                <rect x="520" y="240" width="140" height="120" fill="#1e182e" stroke="#6366f1" stroke-width="2"/>
+                <text x="590" y="305" fill="#818cf8" font-size="12" text-anchor="middle" font-weight="bold">DATA CENTER</text>
+
+                <!-- Desks Grids -->
+                <g fill="#1a1e30" stroke="#2d334d" stroke-width="1.5">
+                  <rect x="200" y="50" width="220" height="90" rx="2"/>
+                  <rect x="580" y="50" width="240" height="90" rx="2"/>
+                  <rect x="650" y="200" width="180" height="100" rx="2"/>
+                  <rect x="650" y="330" width="180" height="100" rx="2"/>
+                </g>
+              </g>
+            </svg>
+
+            <!-- Dynamic Hotspots Overlay Container -->
+            <div id="hotspot-container" class="absolute inset-0 pointer-events-auto">
+              <!-- Dynamic .box-hotspot elements rendered via JavaScript -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Details & Asset Management Panel -->
+        <aside class="w-80 bg-[#131622] border-l border-slate-800 p-5 flex flex-col justify-between shrink-0 overflow-y-auto">
+          <div>
+            <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+              <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-desktop text-cyan-400"></i>
+                Información del Puesto
+              </h3>
+              <span id="detail-status-badge" class="px-2 py-0.5 text-[10px] rounded font-bold bg-slate-800 text-slate-400">SIN SELECCIÓN</span>
+            </div>
+
+            <!-- Empty State Placeholder -->
+            <div id="panel-empty" class="text-center py-12 text-slate-500">
+              <i class="fa-solid fa-arrow-pointer text-3 Keb-2xl mb-3 block opacity-50"></i>
+              <p class="text-xs">Hacé clic en cualquier box del plano o seleccionalo desde el panel superior para ver y editar sus datos.</p>
+            </div>
+
+            <!-- Active Selection Form -->
+            <div id="panel-details" class="space-y-4 hidden text-xs">
+              <div>
+                <label class="block text-slate-400 mb-1 font-medium">Identificador Box / Puesto</label>
+                <input type="text" id="edit-box-id" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-white font-mono focus:border-cyan-500 focus:outline-none" placeholder="BOX-00">
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
                 <div>
-                    <p class="section-kicker">PRE-CHECK</p>
-                    <h1>Data Merge</h1>
+                  <label class="block text-slate-400 mb-1 font-medium">Hostname AD</label>
+                  <input type="text" id="edit-hostname" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-white font-mono focus:border-cyan-500 focus:outline-none" placeholder="PCB-00X">
                 </div>
-                <div class="merge-controls">
-                    <label class="search-field" for="merge-search">
-                        <span>Buscar activo</span>
-                        <input type="search" id="merge-search" placeholder="IP, hostname, MAC o box...">
-                    </label>
-                    <label class="filter-field" for="status-filter">
-                        <span>Estado Cruce</span>
-                        <select id="status-filter">
-                            <option value="">Todos</option>
-                            <option value="VERIFICADO_ACTIVO">VERIFICADO_ACTIVO</option>
-                            <option value="SOLO_UNIFI_NO_AD">SOLO_UNIFI_NO_AD</option>
-                            <option value="SOLO_AD_INACTIVO">SOLO_AD_INACTIVO</option>
-                        </select>
-                    </label>
-                    <label class="filter-field" for="os-filter">
-                        <span>Sistema Operativo</span>
-                        <select id="os-filter">
-                            <option value="">Todos</option>
-                        </select>
-                    </label>
-                    <span id="merge-result-count" class="result-count" aria-live="polite"></span>
+                <div>
+                  <label class="block text-slate-400 mb-1 font-medium">Nuevo Hostname</label>
+                  <input type="text" id="edit-new-hostname" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-amber-400 font-mono focus:border-amber-500 focus:outline-none" placeholder="P05-BOX00">
                 </div>
-            </div>
-            <div class="upload-panel">
-                <div class="upload-intro">
-                    <p class="section-kicker">FUENTES DE DATOS</p>
-                    <h2>Cargar exports</h2>
-                    <p>Subí ambos CSV para ejecutar el cruce localmente en el navegador.</p>
-                </div>
-                <label class="upload-zone" for="unifi-file">
-                    <strong>UniFi export</strong>
-                    <span id="unifi-file-name">unifi_export.csv</span>
-                    <input id="unifi-file" type="file" accept=".csv,text/csv">
-                </label>
-                <label class="upload-zone" for="ad-file">
-                    <strong>Active Directory export</strong>
-                    <span id="ad-file-name">ad_export.csv</span>
-                    <input id="ad-file" type="file" accept=".csv,text/csv">
-                </label>
-                <p id="merge-source-status" class="upload-status" aria-live="polite">Usando datos de muestra.</p>
-            </div>
-            <div class="table-shell">
-                <table class="merge-table">
-                    <thead>
-                        <tr>
-                            <th>Estado</th>
-                            <th><button class="sort-button" type="button" data-sort-key="box_id">Box / Ubicación <span class="sort-indicator">⇅</span></button></th>
-                            <th><button class="sort-button" type="button" data-sort-key="hostname_actual">Hostname AD <span class="sort-indicator">⇅</span></button></th>
-                            <th><button class="sort-button" type="button" data-sort-key="ip_address">Dirección IP <span class="sort-indicator">⇅</span></button></th>
-                            <th>Dirección MAC</th>
-                            <th>Puerto / Switch</th>
-                            <th><button class="sort-button" type="button" data-sort-key="operating_system">Sistema Operativo <span class="sort-indicator">⇅</span></button></th>
-                            <th><button class="sort-button" type="button" data-sort-key="status">Estado Cruce <span class="sort-indicator">⇅</span></button></th>
-                            <th><span class="sr-only">Acción</span></th>
-                        </tr>
-                    </thead>
-                    <tbody id="merge-table-body"></tbody>
-                </table>
-                <p id="merge-empty" class="empty-state" hidden>No hay activos que coincidan con la búsqueda.</p>
-            </div>
-        </section>
-    </main>
+              </div>
 
-    <script src="assets/js/app.js"></script>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-slate-400 mb-1 font-medium">Dirección IP</label>
+                  <input type="text" id="edit-ip" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="192.168.1.X">
+                </div>
+                <div>
+                  <label class="block text-slate-400 mb-1 font-medium">Dirección MAC</label>
+                  <input type="text" id="edit-mac" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="00:00:00:...">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-slate-400 mb-1 font-medium">Puerto Switch / Conexión UniFi</label>
+                <input type="text" id="edit-port" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="USW-48-G2 [Port 12]">
+              </div>
+
+              <div>
+                <label class="block text-slate-400 mb-1 font-medium">Sistema Operativo</label>
+                <select id="edit-os" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 focus:border-cyan-500 focus:outline-none">
+                  <option value="Windows 11 Pro">Windows 11 Pro</option>
+                  <option value="Windows 10 Pro">Windows 10 Pro</option>
+                  <option value="Windows Server">Windows Server</option>
+                  <option value="Linux / Ubuntu">Linux / Ubuntu</option>
+                  <option value="macOS">macOS</option>
+                  <option value="N/D">N/D</option>
+                </select>
+              </div>
+
+              <!-- Positional Coordinates (Percentage) -->
+              <div class="p-3 bg-[#0b0d14] rounded-md border border-slate-800 space-y-2">
+                <span class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">Coordenadas del Plano (%)</span>
+                <div class="grid grid-cols-2 gap-2 text-slate-400 font-mono text-[11px]">
+                  <div>Top: <input type="number" step="0.1" id="edit-top" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Left: <input type="number" step="0.1" id="edit-left" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Ancho: <input type="number" step="0.1" id="edit-width" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Alto: <input type="number" step="0.1" id="edit-height" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                </div>
+              </div>
+
+              <button onclick="saveActivePanelChanges()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 rounded-md transition-all text-xs flex items-center justify-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios del Puesto
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Action -->
+          <div class="pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center">
+            <span>ISO 27001 Mapping Tool</span>
+            <span class="text-slate-400 font-mono">v2.4</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+
+    <!-- ==================== VIEW 2: DATA MERGE PRE-CHECK ==================== -->
+    <div id="view-merge" class="flex-1 flex-col h-full bg-[#0d0f17] p-6 overflow-y-auto hidden">
+      
+      <!-- Upload Dropzones Bar -->
+      <div class="bg-[#131622] border border-slate-800 rounded-xl p-5 mb-6">
+        <h2 class="text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <i class="fa-solid fa-file-csv text-cyan-400"></i> Carga de Archivos de Exportación
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- UniFi Dropzone -->
+          <div class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-lg p-4 bg-[#0b0d14] flex items-center justify-between transition-all">
+            <div class="flex items-center space-x-3">
+              <div class="p-3 bg-cyan-950/50 text-cyan-400 rounded-lg border border-cyan-800/40">
+                <i class="fa-solid fa-wifi text-xl"></i>
+              </div>
+              <div>
+                <h4 class="text-xs font-semibold text-slate-200">Export UniFi Network (MAPEO UNIFI.csv)</h4>
+                <p class="text-[11px] text-slate-400" id="unifi-file-status">Name, MAC Address, Connection, Network, IP Address...</p>
+              </div>
+            </div>
+            <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded cursor-pointer transition-all border border-slate-700">
+              Cargar CSV
+              <input type="file" id="csv-unifi-input" accept=".csv" class="hidden" onchange="handleCsvUpload(event, 'unifi')">
+            </label>
+          </div>
+
+          <!-- Active Directory Dropzone -->
+          <div class="border-2 border-dashed border-slate-700 hover:border-cyan-500 rounded-lg p-4 bg-[#0b0d14] flex items-center justify-between transition-all">
+            <div class="flex items-center space-x-3">
+              <div class="p-3 bg-indigo-950/50 text-indigo-400 rounded-lg border border-indigo-800/40">
+                <i class="fa-solid fa-server text-xl"></i>
+              </div>
+              <div>
+                <h4 class="text-xs font-semibold text-slate-200">Export Active Directory (ad_export.csv)</h4>
+                <p class="text-[11px] text-slate-400" id="ad-file-status">Hostname_Actual, IP_Registrada_AD, Sistema_Operativo...</p>
+              </div>
+            </div>
+            <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded cursor-pointer transition-all border border-slate-700">
+              Cargar CSV
+              <input type="file" id="csv-ad-input" accept=".csv" class="hidden" onchange="handleCsvUpload(event, 'ad')">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters & Sorting Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4 bg-[#131622] p-4 rounded-xl border border-slate-800">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Filter Search -->
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
+            <input type="text" id="merge-search" oninput="renderMergeTable()" placeholder="Buscar hostname, IP, MAC o Box..." class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 w-64 text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+
+          <!-- Filter Estado Cruce -->
+          <select id="filter-status" onchange="renderMergeTable()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+            <option value="ALL">Todos los Estados de Cruce</option>
+            <option value="VERIFICADO_ACTIVO">VERIFICADO_ACTIVO</option>
+            <option value="SOLO_UNIFI_NO_AD">SOLO_UNIFI_NO_AD</option>
+            <option value="SOLO_AD_INACTIVO">SOLO_AD_INACTIVO</option>
+          </select>
+
+          <!-- Filter OS -->
+          <select id="filter-os" onchange="renderMergeTable()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+            <option value="ALL">Todos los Sistemas Operativos</option>
+          </select>
+        </div>
+
+        <!-- Dynamic Counter -->
+        <div class="text-xs text-slate-400">
+          Mostrando <strong id="merge-count" class="text-cyan-400 font-mono">0</strong> de <strong id="merge-total" class="text-slate-200 font-mono">0</strong> registros
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="bg-[#131622] border border-slate-800 rounded-xl overflow-hidden shadow-xl flex-1">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#0b0d14] text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px] tracking-wider select-none">
+                <th class="py-3 px-4 w-12 text-center">Estado</th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('box_id')">Box / Ubicación <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('hostname')">Hostname AD <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('ip')">Dirección IP <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('mac')">Dirección MAC <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4">Puerto / Switch</th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('os')">Sistema Operativo <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('estado_cruce')">Estado Cruce <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 text-center">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="merge-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== VIEW 3: JSON MANAGER ==================== -->
+    <div id="view-json" class="flex-1 flex-col h-full bg-[#0d0f17] p-6 overflow-hidden hidden">
+      <div class="bg-[#131622] border border-slate-800 rounded-xl p-4 flex justify-between items-center mb-4">
+        <div>
+          <h2 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-file-code text-cyan-400"></i> Persistencia: <code class="text-cyan-300 font-mono">data/activos_mapeados.json</code>
+          </h2>
+          <p class="text-xs text-slate-400">Podés copiar el JSON actualizado o descargar directamente el archivo para reemplazarlo en la raíz de tu proyecto.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button onclick="copyJsonToClipboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-md border border-slate-700 flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-copy"></i> Copiar JSON
+          </button>
+          <button onclick="downloadJsonFile()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded-md font-medium flex items-center gap-1.5 transition-all shadow-sm">
+            <i class="fa-solid fa-download"></i> Descargar activos_mapeados.json
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 bg-[#090b10] border border-slate-800 rounded-xl p-4 overflow-auto font-mono text-xs text-emerald-400">
+        <pre id="json-preview-code"><code>// Cargando activos_mapeados.json...</code></pre>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: PowerShell Generator -->
+  <div id="modal-ps1" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="bg-[#131622] border border-slate-800 rounded-xl w-full max-w-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-terminal text-emerald-400"></i> Generador de Script PowerShell (.ps1)
+        </h3>
+        <button onclick="closePs1Modal()" class="text-slate-400 hover:text-slate-200 text-sm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-400">Este script ejecutará el cambio masivo de nombres de host (Hostnames) en Active Directory / Dominio local según las reasignaciones guardadas.</p>
+
+      <div class="bg-[#090b10] p-4 rounded-lg border border-slate-800 font-mono text-xs text-cyan-300 h-64 overflow-y-auto">
+        <pre id="ps1-code-preview"></pre>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-2">
+        <button onclick="closePs1Modal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-md">Cerrar</button>
+        <button onclick="downloadPs1Script()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-4 py-2 rounded-md flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-file-arrow-down"></i> Descargar rename_activos.ps1
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    /* ==========================================================================
+       INITIAL DATA STRUCTURE & STATE MANAGEMENT
+       ========================================================================== */
+    
+    // Initial JSON Seed matching mapped assets
+    let activosData = [
+      { id: "BOX-101", floor: "Piso 5", top: 12.0, left: 24.0, width: 3.5, height: 4.2, hostname: "PCB-06T", newHostname: "P05-BOX101", ip: "192.168.1.189", mac: "f4:b5:20:6f:35:f3", port: "USW-48-G2 [Port 12]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
+      { id: "BOX-102", floor: "Piso 5", top: 20.0, left: 24.0, width: 3.5, height: 4.2, hostname: "DESKTOP-JBOHL1O", newHostname: "P05-BOX102", ip: "192.168.1.190", mac: "f8:ed:fc:50:ba:0e", port: "USW-48-G2 [Port 14]", os: "Windows 10 Pro", status: "SOLO_UNIFI_NO_AD" },
+      { id: "BOX-103", floor: "Piso 5", top: 28.0, left: 24.0, width: 3.5, height: 4.2, hostname: "PCB-06F", newHostname: "P05-BOX103", ip: "192.168.1.191", mac: "00:11:22:33:44:55", port: "USW-48-G2 [Port 16]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
+      { id: "BOX-104", floor: "Piso 5", top: 12.0, left: 36.0, width: 3.5, height: 4.2, hostname: "PCB-13F", newHostname: "P05-BOX104", ip: "192.168.1.192", mac: "00:11:22:33:44:56", port: "USW-48-G2 [Port 18]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
+      { id: "BOX-105", floor: "Piso 5", top: 20.0, left: 36.0, width: 3.5, height: 4.2, hostname: "PCB-24F", newHostname: "P05-BOX105", ip: "192.168.1.193", mac: "00:11:22:33:44:57", port: "USW-48-G2 [Port 20]", os: "Windows 10 Pro", status: "SOLO_UNIFI_NO_AD" },
+      { id: "BOX-201", floor: "Piso 17", top: 18.0, left: 28.0, width: 4.0, height: 4.5, hostname: "PCB-101F", newHostname: "P17-BOX201", ip: "192.168.2.101", mac: "00:11:22:33:45:01", port: "USW-48-G2 17mo Piso [Port 10]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
+      { id: "BOX-202", floor: "Piso 17", top: 26.0, left: 28.0, width: 4.0, height: 4.5, hostname: "PCB-102F", newHostname: "P17-BOX202", ip: "192.168.2.102", mac: "00:11:22:33:45:02", port: "USW-48-G2 17mo Piso [Port 11]", os: "Windows Server", status: "VERIFICADO_ACTIVO" }
+    ];
+
+    let currentFloor = "Piso 5";
+    let selectedBoxId = null;
+    let isCalibrationMode = false;
+    let unifiCsvRows = null;
+    let adCsvRows = null;
+    let mergeData = [];
+
+    // Table sorting state
+    let currentSortColumn = 'box_id';
+    let isSortAsc = true;
+
+    /* ==========================================================================
+       APP INITIALIZATION & TAB SWITCHING
+       ========================================================================== */
+    window.onload = function() {
+      mergeData = activosData.map(asset => ({ ...asset }));
+      renderFloorplanHotspots();
+      renderMergeTable();
+      updateJsonPreview();
+      populateOsFilterDropdown();
+    };
+
+    function switchTab(tabName) {
+      // Hide all views
+      document.getElementById('view-plano').classList.add('hidden');
+      document.getElementById('view-merge').classList.add('hidden');
+      document.getElementById('view-json').classList.add('hidden');
+
+      // Reset Tab Styles
+      document.getElementById('tab-plano-btn').className = "px-4 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 transition-all";
+      document.getElementById('tab-merge-btn').className = "px-4 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 transition-all";
+      document.getElementById('tab-json-btn').className = "px-4 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-slate-200 transition-all";
+
+      const activeClass = "px-4 py-1.5 rounded-md text-xs font-medium bg-cyan-600 text-white shadow-sm transition-all";
+
+      if (tabName === 'plano') {
+        document.getElementById('view-plano').classList.remove('hidden');
+        document.getElementById('tab-plano-btn').className = activeClass;
+      } else if (tabName === 'merge') {
+        document.getElementById('view-merge').classList.remove('hidden');
+        document.getElementById('tab-merge-btn').className = activeClass;
+        renderMergeTable();
+      } else if (tabName === 'json') {
+        document.getElementById('view-json').classList.remove('hidden');
+        document.getElementById('tab-json-btn').className = activeClass;
+        updateJsonPreview();
+      }
+    }
+
+    function changeFloor(floorName) {
+      currentFloor = floorName;
+      selectedBoxId = null;
+      updateSidebarPanel();
+
+      // Switch SVG Floor Artwork
+      if (floorName === 'Piso 5') {
+        document.getElementById('svg-piso-5').classList.remove('hidden');
+        document.getElementById('svg-piso-17').classList.add('hidden');
+      } else {
+        document.getElementById('svg-piso-5').classList.add('hidden');
+        document.getElementById('svg-piso-17').classList.remove('hidden');
+      }
+
+      renderFloorplanHotspots();
+    }
+
+    /* ==========================================================================
+       HOTSPOT MANAGEMENT & INTERACTIVE FLOORPLAN
+       ========================================================================== */
+    function renderFloorplanHotspots() {
+      const container = document.getElementById('hotspot-container');
+      container.innerHTML = '';
+
+      const floorAssets = activosData.filter(a => a.floor === currentFloor);
+      document.getElementById('total-floor-boxes').innerText = floorAssets.length;
+
+      floorAssets.forEach(asset => {
+        const hotspot = document.createElement('div');
+        
+        let statusClass = 'status-active';
+        if (asset.status === 'SOLO_UNIFI_NO_AD') statusClass = 'status-warning';
+        if (asset.status === 'SOLO_AD_INACTIVO') statusClass = 'status-danger';
+
+        const isSelected = asset.id === selectedBoxId;
+
+        hotspot.className = `box-hotspot ${statusClass} ${isSelected ? 'selected' : ''}`;
+        hotspot.style.top = `${asset.top}%`;
+        hotspot.style.left = `${asset.left}%`;
+        hotspot.style.width = `${asset.width}%`;
+        hotspot.style.height = `${asset.height}%`;
+        hotspot.dataset.boxId = asset.id;
+        hotspot.title = `${asset.id} - ${asset.hostname || 'N/D'}`;
+        hotspot.innerText = asset.id.replace('BOX-', '');
+
+        // Add resize handle for calibration mode
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'resize-handle';
+        hotspot.appendChild(resizeHandle);
+
+        // Click Event
+        hotspot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectHotspot(asset.id);
+        });
+
+        // Draggable setup if calibration enabled
+        if (isCalibrationMode) {
+          makeElementDraggableAndResizable(hotspot, asset);
+        }
+
+        container.appendChild(hotspot);
+      });
+    }
+
+    function selectHotspot(boxId) {
+      selectedBoxId = boxId;
+      document.getElementById('selected-box-name').innerText = boxId || 'Ninguno';
+      
+      const btnEdit = document.getElementById('btn-edit-selected');
+      const btnDel = document.getElementById('btn-delete-selected');
+      btnEdit.disabled = !boxId;
+      btnDel.disabled = !boxId;
+
+      renderFloorplanHotspots();
+      updateSidebarPanel();
+    }
+
+    function updateSidebarPanel() {
+      const emptyPanel = document.getElementById('panel-empty');
+      const detailsPanel = document.getElementById('panel-details');
+
+      if (!selectedBoxId) {
+        emptyPanel.classList.remove('hidden');
+        detailsPanel.classList.add('hidden');
+        document.getElementById('detail-status-badge').innerText = 'SIN SELECCIÓN';
+        document.getElementById('detail-status-badge').className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-slate-800 text-slate-400';
+        return;
+      }
+
+      const asset = activosData.find(a => a.id === selectedBoxId);
+      if (!asset) return;
+
+      emptyPanel.classList.add('hidden');
+      detailsPanel.classList.remove('hidden');
+
+      document.getElementById('edit-box-id').value = asset.id;
+      document.getElementById('edit-hostname').value = asset.hostname || '';
+      document.getElementById('edit-new-hostname').value = asset.newHostname || '';
+      document.getElementById('edit-ip').value = asset.ip || '';
+      document.getElementById('edit-mac').value = asset.mac || '';
+      document.getElementById('edit-port').value = asset.port || '';
+      document.getElementById('edit-os').value = asset.os || 'N/D';
+
+      document.getElementById('edit-top').value = asset.top;
+      document.getElementById('edit-left').value = asset.left;
+      document.getElementById('edit-width').value = asset.width;
+      document.getElementById('edit-height').value = asset.height;
+
+      const badge = document.getElementById('detail-status-badge');
+      badge.innerText = asset.status;
+      if (asset.status === 'VERIFICADO_ACTIVO') {
+        badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+      } else if (asset.status === 'SOLO_UNIFI_NO_AD') {
+        badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-amber-950 text-amber-400 border border-amber-800';
+      } else {
+        badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-rose-950 text-rose-400 border border-rose-800';
+      }
+    }
+
+    function saveActivePanelChanges() {
+      if (!selectedBoxId) return;
+      const asset = activosData.find(a => a.id === selectedBoxId);
+      if (!asset) return;
+
+      asset.id = document.getElementById('edit-box-id').value.trim();
+      asset.hostname = document.getElementById('edit-hostname').value.trim();
+      asset.newHostname = document.getElementById('edit-new-hostname').value.trim();
+      asset.ip = document.getElementById('edit-ip').value.trim();
+      asset.mac = document.getElementById('edit-mac').value.trim();
+      asset.port = document.getElementById('edit-port').value.trim();
+      asset.os = document.getElementById('edit-os').value;
+
+      asset.top = parseFloat(document.getElementById('edit-top').value) || asset.top;
+      asset.left = parseFloat(document.getElementById('edit-left').value) || asset.left;
+      asset.width = parseFloat(document.getElementById('edit-width').value) || asset.width;
+      asset.height = parseFloat(document.getElementById('edit-height').value) || asset.height;
+
+      selectedBoxId = asset.id;
+      renderFloorplanHotspots();
+      updateJsonPreview();
+    }
+
+    function addNewHotspot() {
+      const nextIndex = activosData.length + 101;
+      const newBox = {
+        id: `BOX-${nextIndex}`,
+        floor: currentFloor,
+        top: 40.0,
+        left: 40.0,
+        width: 3.5,
+        height: 4.2,
+        hostname: `PCB-${nextIndex}T`,
+        newHostname: `P${currentFloor.includes('5') ? '05' : '17'}-BOX${nextIndex}`,
+        ip: `192.168.1.${Math.floor(Math.random() * 100) + 100}`,
+        mac: `00:11:22:33:${Math.floor(Math.random()*89+10)}:${Math.floor(Math.random()*89+10)}`,
+        port: "USW-48-G2 [Port Auto]",
+        os: "Windows 11 Pro",
+        status: "VERIFICADO_ACTIVO"
+      };
+
+      activosData.push(newBox);
+      selectHotspot(newBox.id);
+      renderFloorplanHotspots();
+      updateJsonPreview();
+    }
+
+    function deleteSelectedHotspot() {
+      if (!selectedBoxId) return;
+      activosData = activosData.filter(a => a.id !== selectedBoxId);
+      selectedBoxId = null;
+      selectHotspot(null);
+      renderFloorplanHotspots();
+      updateJsonPreview();
+    }
+
+    function toggleCalibrationMode(enabled) {
+      isCalibrationMode = enabled;
+      const wrapper = document.getElementById('floorplan-wrapper');
+      if (enabled) {
+        wrapper.classList.add('calibration-active');
+      } else {
+        wrapper.classList.remove('calibration-active');
+      }
+      renderFloorplanHotspots();
+    }
+
+    /* Calibrator Mouse Drag & Resize */
+    function makeElementDraggableAndResizable(elmnt, asset) {
+      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+      const parent = document.getElementById('hotspot-container');
+
+      elmnt.onmousedown = dragMouseDown;
+
+      function dragMouseDown(e) {
+        if (e.target.classList.contains('resize-handle')) {
+          initResize(e);
+          return;
+        }
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+      }
+
+      function elementDrag(e) {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+
+        const parentRect = parent.getBoundingClientRect();
+        let newTopPx = elmnt.offsetTop - pos2;
+        let newLeftPx = elmnt.offsetLeft - pos1;
+
+        let topPct = (newTopPx / parentRect.height) * 100;
+        let leftPct = (newLeftPx / parentRect.width) * 100;
+
+        topPct = Math.max(0, Math.min(topPct, 95));
+        leftPct = Math.max(0, Math.min(leftPct, 95));
+
+        asset.top = parseFloat(topPct.toFixed(2));
+        asset.left = parseFloat(leftPct.toFixed(2));
+
+        elmnt.style.top = `${asset.top}%`;
+        elmnt.style.left = `${asset.left}%`;
+
+        updateSidebarPanel();
+      }
+
+      function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+        updateJsonPreview();
+      }
+
+      function initResize(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.onmousemove = startResizing;
+        document.onmouseup = stopResizing;
+      }
+
+      function startResizing(e) {
+        const parentRect = parent.getBoundingClientRect();
+        const elmntRect = elmnt.getBoundingClientRect();
+
+        let newWidthPct = ((e.clientX - elmntRect.left) / parentRect.width) * 100;
+        let newHeightPct = ((e.clientY - elmntRect.top) / parentRect.height) * 100;
+
+        asset.width = Math.max(1.5, parseFloat(newWidthPct.toFixed(2)));
+        asset.height = Math.max(1.5, parseFloat(newHeightPct.toFixed(2)));
+
+        elmnt.style.width = `${asset.width}%`;
+        elmnt.style.height = `${asset.height}%`;
+
+        updateSidebarPanel();
+      }
+
+      function stopResizing() {
+        document.onmousemove = null;
+        document.onmouseup = null;
+        updateJsonPreview();
+      }
+    }
+
+
+    /* ==========================================================================
+       DATA MERGE (PRE-CHECK) CSV PARSER & TABLE RENDER
+       ========================================================================== */
+    function renderMergeTable() {
+      const tbody = document.getElementById('merge-table-body');
+      tbody.innerHTML = '';
+
+      const searchVal = document.getElementById('merge-search').value.toLowerCase();
+      const statusFilter = document.getElementById('filter-status').value;
+      const osFilter = document.getElementById('filter-os').value;
+
+      let filtered = mergeData.filter(item => {
+        const matchesSearch = (item.id && item.id.toLowerCase().includes(searchVal)) ||
+                              (item.hostname && item.hostname.toLowerCase().includes(searchVal)) ||
+                              (item.ip && item.ip.toLowerCase().includes(searchVal)) ||
+                              (item.mac && item.mac.toLowerCase().includes(searchVal));
+
+        const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
+        const matchesOs = osFilter === 'ALL' || item.os === osFilter;
+
+        return matchesSearch && matchesStatus && matchesOs;
+      });
+
+      // Sorting
+      filtered.sort((a, b) => {
+        let valA = a[currentSortColumn] || '';
+        let valB = b[currentSortColumn] || '';
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+
+        if (valA < valB) return isSortAsc ? -1 : 1;
+        if (valA > valB) return isSortAsc ? 1 : -1;
+        return 0;
+      });
+
+      document.getElementById('merge-count').innerText = filtered.length;
+      document.getElementById('merge-total').innerText = mergeData.length;
+
+      filtered.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40 transition-colors";
+
+        let ledColor = "led-green";
+        let statusBadge = `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded text-[10px] font-bold">VERIFICADO_ACTIVO</span>`;
+        if (row.status === 'SOLO_UNIFI_NO_AD') {
+          ledColor = "led-yellow";
+          statusBadge = `<span class="bg-amber-950 text-amber-400 border border-amber-800/50 px-2 py-0.5 rounded text-[10px] font-bold">SOLO_UNIFI_NO_AD</span>`;
+        } else if (row.status === 'SOLO_AD_INACTIVO') {
+          ledColor = "led-red";
+          statusBadge = `<span class="bg-rose-950 text-rose-400 border border-rose-800/50 px-2 py-0.5 rounded text-[10px] font-bold">SOLO_AD_INACTIVO</span>`;
+        }
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 text-center"><span class="led-dot ${ledColor}"></span></td>
+          <td class="py-3 px-4 text-cyan-300 font-bold">${row.id}</td>
+          <td class="py-3 px-4 text-slate-200">${row.hostname || 'N/D'}</td>
+          <td class="py-3 px-4 text-slate-300">${row.ip || 'N/D'}</td>
+          <td class="py-3 px-4 text-slate-400">${row.mac || 'N/D'}</td>
+          <td class="py-3 px-4 text-slate-400">${row.port || 'N/D'}</td>
+          <td class="py-3 px-4 text-slate-300">${row.os || 'N/D'}</td>
+          <td class="py-3 px-4">${statusBadge}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="gestionarActivoDesdeMerge('${String(row.id).replace(/'/g, "\\'")}')" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all">
+              ${activoEnPlano(row) ? 'Ver en Plano' : '+ Asignar a Plano'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function sortTable(columnKey) {
+      if (currentSortColumn === columnKey) {
+        isSortAsc = !isSortAsc;
+      } else {
+        currentSortColumn = columnKey;
+        isSortAsc = true;
+      }
+      renderMergeTable();
+    }
+
+    function populateOsFilterDropdown() {
+      const select = document.getElementById('filter-os');
+      select.innerHTML = '<option value="ALL">Todos los Sistemas Operativos</option>';
+      
+      const osList = [...new Set(mergeData.map(a => a.os || 'N/D'))];
+      osList.forEach(os => {
+        const opt = document.createElement('option');
+        opt.value = os;
+        opt.innerText = os;
+        select.appendChild(opt);
+      });
+    }
+
+    function selectAndGoToMap(boxId) {
+      const asset = activosData.find(a => a.id === boxId);
+      if (asset) {
+        changeFloor(asset.floor);
+        document.getElementById('floor-select').value = asset.floor;
+        selectHotspot(asset.id);
+      }
+      switchTab('plano');
+    }
+
+    function normalizarValor(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function activoEnPlano(row) {
+      return Boolean(obtenerActivoPlano(row));
+    }
+
+    function obtenerActivoPlano(row) {
+      return activosData.find(asset => [
+        [asset.id, row.id],
+        [asset.ip, row.ip],
+        [asset.mac, row.mac]
+      ].some(([assetValue, rowValue]) => assetValue && rowValue && normalizarValor(assetValue) === normalizarValor(rowValue)));
+    }
+
+    function gestionarActivoDesdeMerge(rowId) {
+      const row = mergeData.find(asset => asset.id === rowId);
+      if (!row) return;
+      const asset = obtenerActivoPlano(row);
+      if (asset) {
+        selectAndGoToMap(asset.id);
+        return;
+      }
+      asignarActivoDesdeMerge(row);
+    }
+
+    function asignarActivoDesdeMerge(row) {
+      const floor = row.floor || currentFloor;
+      const newAsset = {
+        id: row.id && row.id !== 'N/D' ? row.id : `BOX-${activosData.length + 1}`,
+        floor,
+        top: 40,
+        left: 40,
+        width: 3.2,
+        height: 3.8,
+        hostname: row.hostname || 'N/D',
+        newHostname: row.newHostname || row.hostname || 'N/D',
+        ip: row.ip || 'N/D',
+        mac: row.mac || 'N/D',
+        port: row.port || 'N/D',
+        os: row.os || 'N/D',
+        status: row.status || 'SOLO_UNIFI_NO_AD'
+      };
+      activosData.push(newAsset);
+      mergeData = mergeData.map(item => item.id === row.id ? { ...item, ...newAsset } : item);
+      selectedBoxId = newAsset.id;
+      changeFloor(floor);
+      document.getElementById('floor-select').value = floor;
+      renderFloorplanHotspots();
+      updateSidebarPanel();
+      updateJsonPreview();
+      switchTab('plano');
+    }
+
+    /* Flexible CSV Delimiter & Headers Parser */
+    function handleCsvUpload(event, type) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        parseAndMergeCsv(content, type, file.name);
+      };
+      reader.readAsText(file);
+    }
+
+    function parseAndMergeCsv(text, type, filename) {
+      const rows = parseCsvRows(text);
+      if (!rows.length) return;
+
+      if (type === 'unifi') {
+        unifiCsvRows = rows;
+        document.getElementById('unifi-file-status').innerText = `Cargado: ${filename} (${rows.length} registros)`;
+        document.getElementById('unifi-file-status').className = 'text-[11px] text-emerald-400 font-semibold';
+      } else {
+        adCsvRows = rows;
+        document.getElementById('ad-file-status').innerText = `Cargado: ${filename} (${rows.length} registros)`;
+        document.getElementById('ad-file-status').className = 'text-[11px] text-emerald-400 font-semibold';
+      }
+
+      if (unifiCsvRows && adCsvRows) ejecutarCruceCSV();
+    }
+
+    function parseCsvRows(text) {
+      const cleanText = String(text || '').replace(/^\uFEFF/, '');
+      const delimiter = detectarDelimitadorCsv(cleanText);
+      const rows = [];
+      let row = [];
+      let field = '';
+      let quoted = false;
+
+      for (let index = 0; index < cleanText.length; index += 1) {
+        const character = cleanText[index];
+        const nextCharacter = cleanText[index + 1];
+        if (character === '"' && quoted && nextCharacter === '"') {
+          field += '"';
+          index += 1;
+        } else if (character === '"') {
+          quoted = !quoted;
+        } else if (character === delimiter && !quoted) {
+          row.push(field.trim());
+          field = '';
+        } else if ((character === '\n' || character === '\r') && !quoted) {
+          if (character === '\r' && nextCharacter === '\n') index += 1;
+          row.push(field.trim());
+          if (row.some(value => value !== '')) rows.push(row);
+          row = [];
+          field = '';
+        } else {
+          field += character;
+        }
+      }
+      if (field || row.length) {
+        row.push(field.trim());
+        if (row.some(value => value !== '')) rows.push(row);
+      }
+      if (rows.length < 2) return [];
+
+      const headers = rows.shift().map(normalizarHeaderCsv);
+      return rows.map(values => headers.reduce((record, header, index) => {
+        record[header] = values[index] && values[index].trim() ? values[index].trim() : 'N/D';
+        return record;
+      }, {}));
+    }
+
+    function detectarDelimitadorCsv(text) {
+      const firstLine = text.split(/\r?\n/).find(line => line.trim()) || '';
+      return [',', ';', '\t'].reduce((best, candidate) => {
+        const count = firstLine.split(candidate).length - 1;
+        return count > best.count ? { delimiter: candidate, count } : best;
+      }, { delimiter: ',', count: 0 }).delimiter;
+    }
+
+    function normalizarHeaderCsv(header) {
+      return String(header || '')
+        .replace(/^\uFEFF/, '')
+        .replace(/[\u200B-\u200D\u2060\u00A0]/g, ' ')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    }
+
+    function csvValue(row, column) {
+      const value = row[normalizarHeaderCsv(column)];
+      return value && value.trim() ? value.trim() : 'N/D';
+    }
+
+    function ejecutarCruceCSV() {
+      const adByIp = new Map();
+      const adRowsMatched = new Set();
+      adCsvRows.forEach(row => {
+        [csvValue(row, 'IP_Registrada_AD'), csvValue(row, 'IP_Resuelta_DNS')]
+          .filter(ip => ip !== 'N/D')
+          .forEach(ip => adByIp.set(normalizarValor(ip), row));
+      });
+
+      const mergedAssets = unifiCsvRows.map(unifi => {
+        const ip = csvValue(unifi, 'IP Address');
+        const ad = adByIp.get(normalizarValor(ip));
+        if (ad) adRowsMatched.add(ad);
+        const baseline = buscarActivoBase(ip, csvValue(unifi, 'Name'));
+        return crearActivoDesdeCruce(unifi, ad, baseline, ad ? 'VERIFICADO_ACTIVO' : 'SOLO_UNIFI_NO_AD');
+      });
+
+      adCsvRows.forEach(ad => {
+        if (adRowsMatched.has(ad)) return;
+        const ip = csvValue(ad, 'IP_Registrada_AD') !== 'N/D'
+          ? csvValue(ad, 'IP_Registrada_AD')
+          : csvValue(ad, 'IP_Resuelta_DNS');
+        const baseline = buscarActivoBase(ip, csvValue(ad, 'Hostname_Actual'));
+        mergedAssets.push(crearActivoDesdeCruce(null, ad, baseline, 'SOLO_AD_INACTIVO'));
+      });
+
+      mergeData = mergedAssets;
+      renderMergeTable();
+      populateOsFilterDropdown();
+      updateJsonPreview();
+    }
+
+    function buscarActivoBase(ip, name) {
+      return activosData.find(asset => normalizarValor(asset.ip) === normalizarValor(ip)
+        || normalizarValor(asset.id) === normalizarValor(name)) || {};
+    }
+
+    function crearActivoDesdeCruce(unifi, ad, baseline, status) {
+      const name = unifi ? csvValue(unifi, 'Name') : 'N/D';
+      const adHostname = ad ? csvValue(ad, 'Hostname_Actual') : 'N/D';
+      const ip = unifi ? csvValue(unifi, 'IP Address') : csvValue(ad, 'IP_Registrada_AD');
+      return {
+        ...baseline,
+        id: baseline.id || (unifi && name !== 'N/D' ? name : adHostname !== 'N/D' ? adHostname : `AD-${ip}`),
+        hostname: adHostname,
+        newHostname: baseline.newHostname || adHostname,
+        ip: ip === 'N/D' ? csvValue(ad || {}, 'IP_Resuelta_DNS') : ip,
+        mac: unifi ? csvValue(unifi, 'MAC Address') : (baseline.mac || 'N/D'),
+        port: unifi ? csvValue(unifi, 'Connection') : (baseline.port || 'N/D'),
+        os: ad ? csvValue(ad, 'Sistema_Operativo') : (baseline.os || 'N/D'),
+        status
+      };
+    }
+
+    function normalizarValor(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+
+    /* ==========================================================================
+       JSON & POWERSHELL EXPORTS
+       ========================================================================== */
+    function updateJsonPreview() {
+      const codeBlock = document.getElementById('json-preview-code');
+      if (codeBlock) {
+        codeBlock.innerText = JSON.stringify(activosData, null, 2);
+      }
+    }
+
+    function copyJsonToClipboard() {
+      const jsonStr = JSON.stringify(activosData, null, 2);
+      const textArea = document.createElement('textarea');
+      textArea.value = jsonStr;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('¡JSON copiado al portapapeles!');
+    }
+
+    function downloadJsonFile() {
+      const jsonStr = JSON.stringify(activosData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'activos_mapeados.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openPs1Modal() {
+      const modal = document.getElementById('modal-ps1');
+      const ps1Preview = document.getElementById('ps1-code-preview');
+
+      let script = `# ========================================================\n`;
+      script += `# SCRIPT DE RENOMBRADO AUTOMÁTICO EN ACTIVE DIRECTORY\n`;
+      script += `# Generado el: ${new Date().toLocaleString()}\n`;
+      script += `# ========================================================\n\n`;
+
+      activosData.forEach(asset => {
+        if (asset.hostname && asset.newHostname && asset.hostname !== asset.newHostname) {
+          script += `Rename-Computer -ComputerName "${asset.hostname}" -NewName "${asset.newHostname}" -DomainCredential (Get-Credential) -Force -Restart\n`;
+        }
+      });
+
+      ps1Preview.innerText = script;
+      modal.classList.remove('hidden');
+    }
+
+    function closePs1Modal() {
+      document.getElementById('modal-ps1').classList.add('hidden');
+    }
+
+    function downloadPs1Script() {
+      const ps1Text = document.getElementById('ps1-code-preview').innerText;
+      const blob = new Blob([ps1Text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'rename_activos.ps1';
+      a.click();
+      URL.revokeObjectURL(url);
+      closePs1Modal();
+    }
+  </script>
 </body>
 </html>
