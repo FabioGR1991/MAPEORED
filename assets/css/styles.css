@@ -333,6 +333,7 @@
     flex: 1;
     overflow: auto;
     padding: 20px;
+    position: relative;
     text-align: center;
 }
 
@@ -360,31 +361,76 @@
     padding: 6px 9px;
 }
 
+.calibration-toggle {
+    align-items: center;
+    color: #f5c451;
+    display: inline-flex;
+    font-size: 11px;
+    gap: 5px;
+    margin: 0;
+}
+
+.calibration-toggle input {
+    accent-color: #f5c451;
+    height: auto;
+    width: auto;
+}
+
 #map-wrapper {
+    display: block;
     position: relative;
-    display: inline-block;
+    width: 100%;
 }
 
 #map-image {
-    max-width: 100%;
+    display: block;
     height: auto;
+    width: 100%;
     border-radius: 8px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
 .box-hotspot {
-    position: absolute;
-    border: 2px solid #00bfff;
-    background: rgba(0, 191, 255, 0.2);
+    box-sizing: border-box;
     cursor: pointer;
-    border-radius: 4px;
+    pointer-events: auto;
+    position: absolute;
+    border: 1px solid #00bfff;
+    background: rgba(0, 191, 255, 0.16);
+    border-radius: 2px;
+    touch-action: none;
     transition: all 0.2s ease;
+}
+
+.calibration-active .box-hotspot {
+    border-color: #f5c451;
+    background: rgba(245, 196, 81, 0.18);
+    cursor: move;
+}
+
+.calibration-active .box-hotspot.active {
+    border-color: #36d399;
+    box-shadow: 0 0 0 1px rgba(54, 211, 153, 0.35);
+}
+
+.calibration-output {
+    background: #181824;
+    border: 1px solid #36d399;
+    border-radius: 3px;
+    bottom: 10px;
+    color: #36d399;
+    font: 11px 'Cascadia Code', Consolas, monospace;
+    left: 10px;
+    padding: 7px 9px;
+    position: absolute;
+    text-align: left;
+    z-index: 3;
 }
 
 .box-hotspot:hover {
     background: rgba(0, 255, 127, 0.5);
     border-color: #00ff7f;
-    transform: scale(1.05);
+    transform: none;
 }
 
 .box-hotspot.active {

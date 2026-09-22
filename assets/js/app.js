@@ -4,6 +4,8 @@ let pisoActual = 5;
 let unifiCsvData = null;
 let adCsvData = null;
 let mergeSort = { key: '', direction: 1 };
+let calibrationMode = false;
+let dragState = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('floor-selector').addEventListener('change', cambiarPiso);
@@ -18,6 +20,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.getElementById('unifi-file').addEventListener('change', event => cargarCsv(event, 'unifi'));
     document.getElementById('ad-file').addEventListener('change', event => cargarCsv(event, 'ad'));
+    document.getElementById('calibration-mode').addEventListener('change', event => {
+        setCalibrationMode(event.target.checked);
+    });
+    document.addEventListener('keydown', manejarTecladoCalibracion);
 
     try {
         const response = await fetch('data/activos_mapeados.json');
@@ -49,6 +55,13 @@ function actualizarMapa() {
     renderHotspots();
 }
 
+function setCalibrationMode(enabled) {
+    calibrationMode = enabled;
+    document.getElementById('map-wrapper').classList.toggle('calibration-active', enabled);
+    document.getElementById('calibration-output').hidden = !enabled;
+    if (!enabled) dragState = null;
+}
+
 function renderHotspots() {
     const wrapper = document.getElementById('map-wrapper');
     // Limpiar hotspots previos
@@ -62,10 +75,90 @@ function renderHotspots() {
         div.style.width = item.width_pct + '%';
         div.style.height = item.height_pct + '%';
         div.title = item.box_id;
+        div.tabIndex = 0;
+        div.dataset.boxId = item.box_id;
 
-        div.onclick = (e) => selectBox(e, item);
+        div.onclick = (event) => {
+            if (!calibrationMode) selectBox(event, item);
+        };
+        div.addEventListener('pointerdown', event => iniciarArrastre(event, div, item));
+        div.addEventListener('pointermove', event => moverHotspot(event, div, item));
+        div.addEventListener('pointerup', finalizarArrastre);
+        div.addEventListener('pointercancel', finalizarArrastre);
         wrapper.appendChild(div);
     });
+}
+
+function iniciarArrastre(event, element, item) {
+    if (!calibrationMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    document.querySelectorAll('.box-hotspot').forEach(hotspot => hotspot.classList.remove('active'));
+    element.classList.add('active');
+    element.focus();
+    dragState = { element, item };
+    element.setPointerCapture(event.pointerId);
+}
+
+function moverHotspot(event, element, item) {
+    if (!calibrationMode || !dragState || dragState.element !== element) return;
+    const wrapper = document.getElementById('map-wrapper');
+    const bounds = wrapper.getBoundingClientRect();
+    const maxLeft = 100 - Number(item.width_pct || 0);
+    const maxTop = 100 - Number(item.height_pct || 0);
+    const left = limitar(((event.clientX - bounds.left) / bounds.width) * 100, 0, maxLeft);
+    const top = limitar(((event.clientY - bounds.top) / bounds.height) * 100, 0, maxTop);
+    actualizarCoordenadas(item, element, top, left);
+}
+
+function finalizarArrastre() {
+    if (!dragState) return;
+    mostrarCoordenadas(dragState.item);
+    dragState = null;
+}
+
+function manejarTecladoCalibracion(event) {
+    if (event.key.toLowerCase() === 'c' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        const toggle = document.getElementById('calibration-mode');
+        toggle.checked = !toggle.checked;
+        setCalibrationMode(toggle.checked);
+        return;
+    }
+    if (!calibrationMode || !document.activeElement.classList.contains('box-hotspot')) return;
+    const movement = event.shiftKey ? 1 : 0.1;
+    let topDelta = 0;
+    let leftDelta = 0;
+    if (event.key === 'ArrowUp') topDelta = -movement;
+    if (event.key === 'ArrowDown') topDelta = movement;
+    if (event.key === 'ArrowLeft') leftDelta = -movement;
+    if (event.key === 'ArrowRight') leftDelta = movement;
+    if (!topDelta && !leftDelta) return;
+
+    event.preventDefault();
+    const element = document.activeElement;
+    const item = activosData.find(activeItem => activeItem.box_id === element.dataset.boxId);
+    if (!item) return;
+    const top = limitar(Number(item.top_pct || 0) + topDelta, 0, 100 - Number(item.height_pct || 0));
+    const left = limitar(Number(item.left_pct || 0) + leftDelta, 0, 100 - Number(item.width_pct || 0));
+    actualizarCoordenadas(item, element, top, left);
+    mostrarCoordenadas(item);
+}
+
+function actualizarCoordenadas(item, element, top, left) {
+    item.top_pct = Number(top.toFixed(2));
+    item.left_pct = Number(left.toFixed(2));
+    element.style.top = item.top_pct + '%';
+    element.style.left = item.left_pct + '%';
+}
+
+function mostrarCoordenadas(item) {
+    const output = document.getElementById('calibration-output');
+    output.textContent = `${item.box_id}: top_pct: ${Number(item.top_pct).toFixed(2)}, left_pct: ${Number(item.left_pct).toFixed(2)}`;
+    console.log(`${item.box_id}: { "top_pct": ${Number(item.top_pct).toFixed(2)}, "left_pct": ${Number(item.left_pct).toFixed(2)} }`);
+}
+
+function limitar(value, minimum, maximum) {
+    return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
 function selectBox(event, item) {

@@ -23,10 +23,15 @@
                         <option value="5">Piso 5</option>
                         <option value="17">Piso 17</option>
                     </select>
+                    <label class="calibration-toggle" for="calibration-mode">
+                        <input id="calibration-mode" type="checkbox">
+                        <span>Modo calibración</span>
+                    </label>
                 </header>
                 <div id="map-wrapper">
                     <!-- Planos de planta almacenados en assets/images/ -->
                     <img id="map-image" src="assets/images/PISO 5.jpg" alt="Plano de Planta">
+                    <output id="calibration-output" class="calibration-output" hidden></output>
                 </div>
             </div>
 
