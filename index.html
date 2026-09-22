@@ -1,0 +1,142 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Twin - Plano Interactivo UniFi/AD</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <nav class="app-tabs" aria-label="Secciones de la aplicación">
+            <button class="tab-button active" type="button" data-view="map-view">&#128506;&#65039; Plano Interactivo</button>
+            <button class="tab-button" type="button" data-view="merge-view">&#128202; Data Merge (Pre-Check)</button>
+        </nav>
+    </header>
+
+    <main id="app-content">
+        <section id="map-view" class="view-section active-view">
+            <div id="map-container">
+                <header>
+                    <h2>Plano Interactivo - Control de Activos</h2>
+                    <label for="floor-selector">Piso:</label>
+                    <select id="floor-selector">
+                        <option value="5">Piso 5</option>
+                        <option value="17">Piso 17</option>
+                    </select>
+                </header>
+                <div id="map-wrapper">
+                    <!-- Planos de planta almacenados en assets/images/ -->
+                    <img id="map-image" src="assets/images/PISO 5.jpg" alt="Plano de Planta">
+                </div>
+            </div>
+
+            <aside id="sidebar">
+                <h3>&#128205; Información del Puesto</h3>
+                <p style="color: #aaa; font-size: 13px;">Hacé clic en cualquier box para gestionar sus datos.</p>
+                
+                <div class="card" id="info-card" style="display: none;">
+                    <div class="form-group">
+                        <label>Ubicación / Box:</label>
+                        <input type="text" id="box-id" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Hostname Actual (AD):</label>
+                        <input type="text" id="hostname-actual" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Nuevo Hostname Propuesto:</label>
+                        <input type="text" id="hostname-nuevo">
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección IP (UniFi):</label>
+                        <input type="text" id="ip-address" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Switch &amp; Puerto:</label>
+                        <input type="text" id="switch-port" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado de Diagnóstico:</label>
+                        <input type="text" id="status-diag" readonly>
+                    </div>
+                    <button onclick="guardarCambio()">&#128190; Guardar Cambio Local</button>
+                </div>
+
+                <div style="margin-top: auto;">
+                    <button style="background: #28a745; color: #fff;" onclick="generarPowerShell()">&#9889; Generar Script PowerShell (.ps1)</button>
+                </div>
+            </aside>
+        </section>
+
+        <section id="merge-view" class="view-section" hidden>
+            <div class="merge-header">
+                <div>
+                    <p class="section-kicker">PRE-CHECK</p>
+                    <h1>Data Merge</h1>
+                </div>
+                <div class="merge-controls">
+                    <label class="search-field" for="merge-search">
+                        <span>Buscar activo</span>
+                        <input type="search" id="merge-search" placeholder="IP, hostname, MAC o box...">
+                    </label>
+                    <label class="filter-field" for="status-filter">
+                        <span>Estado Cruce</span>
+                        <select id="status-filter">
+                            <option value="">Todos</option>
+                            <option value="VERIFICADO_ACTIVO">VERIFICADO_ACTIVO</option>
+                            <option value="SOLO_UNIFI_NO_AD">SOLO_UNIFI_NO_AD</option>
+                            <option value="SOLO_AD_INACTIVO">SOLO_AD_INACTIVO</option>
+                        </select>
+                    </label>
+                    <label class="filter-field" for="os-filter">
+                        <span>Sistema Operativo</span>
+                        <select id="os-filter">
+                            <option value="">Todos</option>
+                        </select>
+                    </label>
+                    <span id="merge-result-count" class="result-count" aria-live="polite"></span>
+                </div>
+            </div>
+            <div class="upload-panel">
+                <div class="upload-intro">
+                    <p class="section-kicker">FUENTES DE DATOS</p>
+                    <h2>Cargar exports</h2>
+                    <p>Subí ambos CSV para ejecutar el cruce localmente en el navegador.</p>
+                </div>
+                <label class="upload-zone" for="unifi-file">
+                    <strong>UniFi export</strong>
+                    <span id="unifi-file-name">unifi_export.csv</span>
+                    <input id="unifi-file" type="file" accept=".csv,text/csv">
+                </label>
+                <label class="upload-zone" for="ad-file">
+                    <strong>Active Directory export</strong>
+                    <span id="ad-file-name">ad_export.csv</span>
+                    <input id="ad-file" type="file" accept=".csv,text/csv">
+                </label>
+                <p id="merge-source-status" class="upload-status" aria-live="polite">Usando datos de muestra.</p>
+            </div>
+            <div class="table-shell">
+                <table class="merge-table">
+                    <thead>
+                        <tr>
+                            <th>Estado</th>
+                            <th><button class="sort-button" type="button" data-sort-key="box_id">Box / Ubicación <span class="sort-indicator">⇅</span></button></th>
+                            <th><button class="sort-button" type="button" data-sort-key="hostname_actual">Hostname AD <span class="sort-indicator">⇅</span></button></th>
+                            <th><button class="sort-button" type="button" data-sort-key="ip_address">Dirección IP <span class="sort-indicator">⇅</span></button></th>
+                            <th>Dirección MAC</th>
+                            <th>Puerto / Switch</th>
+                            <th><button class="sort-button" type="button" data-sort-key="operating_system">Sistema Operativo <span class="sort-indicator">⇅</span></button></th>
+                            <th><button class="sort-button" type="button" data-sort-key="status">Estado Cruce <span class="sort-indicator">⇅</span></button></th>
+                            <th><span class="sr-only">Acción</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="merge-table-body"></tbody>
+                </table>
+                <p id="merge-empty" class="empty-state" hidden>No hay activos que coincidan con la búsqueda.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
