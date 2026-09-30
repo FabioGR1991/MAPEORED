@@ -9,6 +9,21 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+    @keyframes mapeored-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-spinner {
+      animation: mapeored-spin 0.8s linear infinite;
+      border: 2px solid rgba(148, 163, 184, 0.3);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 14px;
+      height: 14px;
+      width: 14px;
+    }
+
     body {
       font-family: 'Inter', sans-serif;
     }
@@ -41,6 +56,7 @@
     .box-hotspot {
       position: absolute;
       box-sizing: border-box;
+      touch-action: none;
       border: 1.5px solid rgba(14, 165, 233, 0.8);
       background-color: rgba(14, 165, 233, 0.15);
       border-radius: 3px;
@@ -90,6 +106,12 @@
       color: #f87171;
     }
 
+    .box-hotspot.status-draft {
+      border-color: rgba(148, 163, 184, 0.8);
+      background-color: rgba(148, 163, 184, 0.12);
+      color: #cbd5e1;
+    }
+
     /* Calibrator Handles */
     .calibration-active .box-hotspot {
       cursor: move;
@@ -122,6 +144,7 @@
     .led-green { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
     .led-yellow { background-color: #eab308; box-shadow: 0 0 8px #eab308; }
     .led-red { background-color: #ef4444; box-shadow: 0 0 8px #ef4444; }
+    .led-gray { background-color: #94a3b8; box-shadow: 0 0 8px #94a3b8; }
   </style>
 </head>
 <body class="h-full flex flex-col bg-[#0d0f17] text-slate-200 overflow-hidden">
@@ -160,6 +183,15 @@
 
   <main class="flex-1 relative overflow-hidden flex flex-col">
 
+    <div id="app-load-status" role="status" aria-live="polite" class="absolute inset-x-6 top-4 z-40 flex items-center gap-2 rounded border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200">
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <span id="app-load-message">Cargando activos…</span>
+    </div>
+    <div id="app-load-error" role="alert" aria-live="assertive" class="hidden flex absolute inset-x-6 top-4 z-50 items-center justify-between gap-4 rounded border border-rose-700 bg-rose-950 px-4 py-3 text-sm text-rose-100">
+      <span id="app-load-error-message"></span>
+      <button id="app-load-retry" type="button" onclick="initializeApp()" class="shrink-0 rounded border border-rose-700 px-3 py-1 text-xs font-semibold hover:bg-rose-900">Reintentar</button>
+    </div>
+
     <!-- ==================== VIEW 1: PLANO INTERACTIVO ==================== -->
     <div id="view-plano" class="flex-1 flex flex-col h-full overflow-hidden">
       
@@ -170,8 +202,8 @@
           <div class="flex items-center space-x-2">
             <label class="text-xs text-slate-400 font-medium">Piso Actual:</label>
             <select id="floor-select" onchange="changeFloor(this.value)" class="bg-[#1a1e2e] text-slate-200 text-xs font-semibold rounded-md border border-slate-700 px-3 py-1.5 focus:outline-none focus:border-cyan-500">
-              <option value="Piso 5">Piso 5 - Planta 25 de Mayo</option>
-              <option value="Piso 17">Piso 17 - Edificio del Sur</option>
+              <option value="Piso 5">Piso 5 - Sede Demo Norte</option>
+              <option value="Piso 17">Piso 17 - Sede Demo Sur</option>
             </select>
           </div>
 
@@ -335,7 +367,7 @@
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="block text-slate-400 mb-1 font-medium">Hostname AD</label>
-                  <input type="text" id="edit-hostname" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-white font-mono focus:border-cyan-500 focus:outline-none" placeholder="PCB-00X">
+                  <input type="text" id="edit-hostname" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-white font-mono focus:border-cyan-500 focus:outline-none" placeholder="DEMO-PC-000">
                 </div>
                 <div>
                   <label class="block text-slate-400 mb-1 font-medium">Nuevo Hostname</label>
@@ -346,7 +378,7 @@
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="block text-slate-400 mb-1 font-medium">Dirección IP</label>
-                  <input type="text" id="edit-ip" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="192.168.1.X">
+                  <input type="text" id="edit-ip" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="192.0.2.X">
                 </div>
                 <div>
                   <label class="block text-slate-400 mb-1 font-medium">Dirección MAC</label>
@@ -356,7 +388,7 @@
 
               <div>
                 <label class="block text-slate-400 mb-1 font-medium">Puerto Switch / Conexión UniFi</label>
-                <input type="text" id="edit-port" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="USW-48-G2 [Port 12]">
+                <input type="text" id="edit-port" class="w-full bg-[#1a1e2e] border border-slate-700 rounded p-2 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none" placeholder="DEMO-SW-P05-PORT-XX">
               </div>
 
               <div>
@@ -375,10 +407,10 @@
               <div class="p-3 bg-[#0b0d14] rounded-md border border-slate-800 space-y-2">
                 <span class="text-[11px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">Coordenadas del Plano (%)</span>
                 <div class="grid grid-cols-2 gap-2 text-slate-400 font-mono text-[11px]">
-                  <div>Top: <input type="number" step="0.1" id="edit-top" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
-                  <div>Left: <input type="number" step="0.1" id="edit-left" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
-                  <div>Ancho: <input type="number" step="0.1" id="edit-width" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
-                  <div>Alto: <input type="number" step="0.1" id="edit-height" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Top: <input type="number" min="0" max="100" step="0.1" id="edit-top" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Left: <input type="number" min="0" max="100" step="0.1" id="edit-left" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Ancho: <input type="number" min="0.1" max="100" step="0.1" id="edit-width" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
+                  <div>Alto: <input type="number" min="0.1" max="100" step="0.1" id="edit-height" class="w-16 bg-[#1a1e2e] border border-slate-700 rounded px-1 text-white"> %</div>
                 </div>
               </div>
 
@@ -422,6 +454,7 @@
               Cargar CSV
               <input type="file" id="csv-unifi-input" accept=".csv" class="hidden" onchange="handleCsvUpload(event, 'unifi')">
             </label>
+            <button id="retry-unifi-file" type="button" onclick="reintentarCargaCsv('unifi')" class="hidden text-xs text-cyan-300 underline">Reintentar lectura</button>
           </div>
 
           <!-- Active Directory Dropzone -->
@@ -439,8 +472,11 @@
               Cargar CSV
               <input type="file" id="csv-ad-input" accept=".csv" class="hidden" onchange="handleCsvUpload(event, 'ad')">
             </label>
+            <button id="retry-ad-file" type="button" onclick="reintentarCargaCsv('ad')" class="hidden text-xs text-cyan-300 underline">Reintentar lectura</button>
           </div>
         </div>
+        <p id="merge-source-status" role="status" aria-live="polite" class="mt-3 text-xs text-slate-400">Carga ambos CSV para iniciar el cruce.</p>
+        <button id="merge-apply-button" type="button" onclick="confirmarAplicarCruce()" class="hidden mt-2 rounded bg-cyan-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-600 disabled:opacity-50">Aplicar cruce</button>
       </div>
 
       <!-- Filters & Sorting Bar -->
@@ -449,26 +485,33 @@
           <!-- Filter Search -->
           <div class="relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-500"></i>
-            <input type="text" id="merge-search" oninput="renderMergeTable()" placeholder="Buscar hostname, IP, MAC o Box..." class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 w-64 text-slate-200 focus:outline-none focus:border-cyan-500">
+            <input type="text" id="merge-search" oninput="programarRenderMergeTable()" placeholder="Buscar hostname, IP, MAC o Box..." class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg pl-8 pr-3 py-2 w-64 text-slate-200 focus:outline-none focus:border-cyan-500">
           </div>
 
           <!-- Filter Estado Cruce -->
-          <select id="filter-status" onchange="renderMergeTable()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+          <select id="filter-status" onchange="resetearPaginaMerge()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
             <option value="ALL">Todos los Estados de Cruce</option>
             <option value="VERIFICADO_ACTIVO">VERIFICADO_ACTIVO</option>
             <option value="SOLO_UNIFI_NO_AD">SOLO_UNIFI_NO_AD</option>
             <option value="SOLO_AD_INACTIVO">SOLO_AD_INACTIVO</option>
+            <option value="AMBIGUO">AMBIGUO</option>
+            <option value="BORRADOR">BORRADOR</option>
           </select>
 
           <!-- Filter OS -->
-          <select id="filter-os" onchange="renderMergeTable()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+          <select id="filter-os" onchange="resetearPaginaMerge()" class="bg-[#0b0d14] border border-slate-700 text-xs rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
             <option value="ALL">Todos los Sistemas Operativos</option>
           </select>
         </div>
 
-        <!-- Dynamic Counter -->
-        <div class="text-xs text-slate-400">
-          Mostrando <strong id="merge-count" class="text-cyan-400 font-mono">0</strong> de <strong id="merge-total" class="text-slate-200 font-mono">0</strong> registros
+        <div class="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+          <span>Resultados: <strong id="merge-count" class="text-cyan-400 font-mono">0</strong> de <strong id="merge-total" class="text-slate-200 font-mono">0</strong></span>
+          <div class="flex items-center gap-2">
+            <span id="merge-page-range">0 visibles</span>
+            <button id="merge-prev-page" type="button" onclick="cambiarPaginaMerge(-1)" aria-label="Página anterior" title="Página anterior" class="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded px-2 py-1 disabled:opacity-40" disabled><i class="fa-solid fa-chevron-left"></i></button>
+            <span id="merge-page-indicator" class="font-mono">1 / 1</span>
+            <button id="merge-next-page" type="button" onclick="cambiarPaginaMerge(1)" aria-label="Página siguiente" title="Página siguiente" class="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded px-2 py-1 disabled:opacity-40" disabled><i class="fa-solid fa-chevron-right"></i></button>
+          </div>
         </div>
       </div>
 
@@ -480,12 +523,12 @@
               <tr class="bg-[#0b0d14] text-slate-400 border-b border-slate-800 uppercase font-semibold text-[11px] tracking-wider select-none">
                 <th class="py-3 px-4 w-12 text-center">Estado</th>
                 <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('box_id')">Box / Ubicación <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
-                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('hostname')">Hostname AD <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
-                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('ip')">Dirección IP <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
-                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('mac')">Dirección MAC <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('hostname_actual')">Hostname AD <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('ip_address')">Dirección IP <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('mac_address')">Dirección MAC <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
                 <th class="py-3 px-4">Puerto / Switch</th>
-                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('os')">Sistema Operativo <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
-                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('estado_cruce')">Estado Cruce <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('operating_system')">Sistema Operativo <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
+                <th class="py-3 px-4 cursor-pointer hover:text-cyan-400" onclick="sortTable('status')">Estado Cruce <i class="fa-solid fa-sort text-[10px] ml-1"></i></th>
                 <th class="py-3 px-4 text-center">Acción</th>
               </tr>
             </thead>
@@ -534,7 +577,8 @@
         <button onclick="closePs1Modal()" class="text-slate-400 hover:text-slate-200 text-sm"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <p class="text-xs text-slate-400">Este script ejecutará el cambio masivo de nombres de host (Hostnames) en Active Directory / Dominio local según las reasignaciones guardadas.</p>
+      <p id="ps1-script-scope" class="text-xs font-semibold text-slate-200"></p>
+      <div role="note" class="rounded border border-amber-700 bg-amber-950/60 px-3 py-2 text-xs text-amber-100">Modo de seguridad: el script incluye <code>-WhatIf</code> en cada cambio y solo simula las operaciones. No se aplican renombrados ni reinicios; revisá el destino y el alcance antes de cualquier uso posterior.</div>
 
       <div class="bg-[#090b10] p-4 rounded-lg border border-slate-800 font-mono text-xs text-cyan-300 h-64 overflow-y-auto">
         <pre id="ps1-code-preview"></pre>
@@ -555,24 +599,20 @@
        INITIAL DATA STRUCTURE & STATE MANAGEMENT
        ========================================================================== */
     
-    // Initial JSON Seed matching mapped assets
-    let activosData = [
-      { id: "BOX-101", floor: "Piso 5", top: 12.0, left: 24.0, width: 3.5, height: 4.2, hostname: "PCB-06T", newHostname: "P05-BOX101", ip: "192.168.1.189", mac: "f4:b5:20:6f:35:f3", port: "USW-48-G2 [Port 12]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
-      { id: "BOX-102", floor: "Piso 5", top: 20.0, left: 24.0, width: 3.5, height: 4.2, hostname: "DESKTOP-JBOHL1O", newHostname: "P05-BOX102", ip: "192.168.1.190", mac: "f8:ed:fc:50:ba:0e", port: "USW-48-G2 [Port 14]", os: "Windows 10 Pro", status: "SOLO_UNIFI_NO_AD" },
-      { id: "BOX-103", floor: "Piso 5", top: 28.0, left: 24.0, width: 3.5, height: 4.2, hostname: "PCB-06F", newHostname: "P05-BOX103", ip: "192.168.1.191", mac: "00:11:22:33:44:55", port: "USW-48-G2 [Port 16]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
-      { id: "BOX-104", floor: "Piso 5", top: 12.0, left: 36.0, width: 3.5, height: 4.2, hostname: "PCB-13F", newHostname: "P05-BOX104", ip: "192.168.1.192", mac: "00:11:22:33:44:56", port: "USW-48-G2 [Port 18]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
-      { id: "BOX-105", floor: "Piso 5", top: 20.0, left: 36.0, width: 3.5, height: 4.2, hostname: "PCB-24F", newHostname: "P05-BOX105", ip: "192.168.1.193", mac: "00:11:22:33:44:57", port: "USW-48-G2 [Port 20]", os: "Windows 10 Pro", status: "SOLO_UNIFI_NO_AD" },
-      { id: "BOX-201", floor: "Piso 17", top: 18.0, left: 28.0, width: 4.0, height: 4.5, hostname: "PCB-101F", newHostname: "P17-BOX201", ip: "192.168.2.101", mac: "00:11:22:33:45:01", port: "USW-48-G2 17mo Piso [Port 10]", os: "Windows 11 Pro", status: "VERIFICADO_ACTIVO" },
-      { id: "BOX-202", floor: "Piso 17", top: 26.0, left: 28.0, width: 4.0, height: 4.5, hostname: "PCB-102F", newHostname: "P17-BOX202", ip: "192.168.2.102", mac: "00:11:22:33:45:02", port: "USW-48-G2 17mo Piso [Port 11]", os: "Windows Server", status: "VERIFICADO_ACTIVO" }
-    ];
-
+    let activosData = [];
     let currentFloor = "Piso 5";
     let selectedBoxId = null;
     let isCalibrationMode = false;
     let unifiCsvRows = null;
     let adCsvRows = null;
-    let mergeData = [];
-
+    let mergeAmbiguities = [];
+    const MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024;
+    const MAX_CSV_ROWS = 50000;
+    const MERGE_PAGE_SIZE = 200;
+    let currentMergePage = 0;
+    let mergeSearchTimer = null;
+    let isAppLoading = false;
+    let isCrossProcessing = false;
     // Table sorting state
     let currentSortColumn = 'box_id';
     let isSortAsc = true;
@@ -580,13 +620,90 @@
     /* ==========================================================================
        APP INITIALIZATION & TAB SWITCHING
        ========================================================================== */
-    window.onload = function() {
-      mergeData = activosData.map(asset => ({ ...asset }));
-      renderFloorplanHotspots();
-      renderMergeTable();
-      updateJsonPreview();
-      populateOsFilterDropdown();
-    };
+    function validarActivosData(data) {
+      if (!Array.isArray(data)) return false;
+      const boxIds = new Set();
+      const statuses = new Set(['VERIFICADO_ACTIVO', 'SOLO_UNIFI_NO_AD', 'SOLO_AD_INACTIVO', 'AMBIGUO', 'BORRADOR']);
+      const stringFields = ['box_id', 'ip_address', 'mac_address', 'hostname_actual', 'hostname_propuesto', 'switch_connection', 'status'];
+
+      return data.every(asset => {
+        if (!asset || typeof asset !== 'object'
+          || stringFields.some(field => typeof asset[field] !== 'string' || !asset[field].trim())
+          || !statuses.has(asset.status)
+          || ![5, 17].includes(asset.piso)
+          || boxIds.has(asset.box_id)) return false;
+
+        const coordinates = ['top_pct', 'left_pct', 'width_pct', 'height_pct'];
+        if (coordinates.some(field => !Number.isFinite(asset[field]) || asset[field] < 0 || asset[field] > 100)
+          || asset.width_pct === 0 || asset.height_pct === 0
+          || asset.top_pct + asset.height_pct > 100
+          || asset.left_pct + asset.width_pct > 100) return false;
+
+        boxIds.add(asset.box_id);
+        return true;
+      });
+    }
+
+    function logOperationalEvent(eventName, attributes = {}) {
+      const safeFields = new Set(['source', 'recordCount', 'changeCount', 'durationMs', 'errorType']);
+      const safeAttributes = {};
+      Object.entries(attributes).forEach(([key, value]) => {
+        if (!safeFields.has(key)) return;
+        if (key === 'source' && !['unifi', 'ad'].includes(value)) return;
+        if (key === 'errorType' && (typeof value !== 'string' || !/^[A-Za-z][A-Za-z0-9]*$/.test(value))) return;
+        if (!['source', 'errorType'].includes(key) && (typeof value !== 'number' || !Number.isFinite(value))) return;
+        safeAttributes[key] = value;
+      });
+      const entry = JSON.stringify({ component: 'MAPEORED', event: eventName, ...safeAttributes });
+      if (eventName.endsWith('.error')) console.warn(entry);
+      else console.info(entry);
+    }
+
+    async function initializeApp() {
+      if (isAppLoading) return;
+      isAppLoading = true;
+      const loadingPanel = document.getElementById('app-load-status');
+      const errorPanel = document.getElementById('app-load-error');
+      const retryButton = document.getElementById('app-load-retry');
+      const loadingMessage = document.getElementById('app-load-message');
+      const spinner = loadingPanel.querySelector('.loading-spinner');
+      const startedAt = performance.now();
+      retryButton.disabled = true;
+      errorPanel.classList.add('hidden');
+      loadingPanel.classList.remove('hidden');
+      spinner.classList.remove('hidden');
+      loadingMessage.textContent = 'Cargando activos…';
+
+      try {
+        const response = await fetch('data/activos_mapeados.json', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!validarActivosData(data)) throw new Error('El JSON no cumple el esquema de activos esperado.');
+
+        activosData = data;
+        renderFloorplanHotspots();
+        renderMergeTable();
+        updateJsonPreview();
+        populateOsFilterDropdown();
+        spinner.classList.add('hidden');
+        loadingMessage.textContent = `${data.length} activos cargados.`;
+        logOperationalEvent('assets.load.success', {
+          recordCount: data.length,
+          durationMs: Math.round(performance.now() - startedAt)
+        });
+        window.setTimeout(() => loadingPanel.classList.add('hidden'), 2400);
+      } catch (error) {
+        loadingPanel.classList.add('hidden');
+        document.getElementById('app-load-error-message').textContent = `No se pudieron cargar los activos. Verificá data/activos_mapeados.json y que el proyecto se sirva por HTTP(S). ${error.message}`;
+        errorPanel.classList.remove('hidden');
+        logOperationalEvent('assets.load.error', { errorType: error.name || 'Error' });
+      } finally {
+        isAppLoading = false;
+        retryButton.disabled = false;
+      }
+    }
+
+    window.addEventListener('load', initializeApp);
 
     function switchTab(tabName) {
       // Hide all views
@@ -639,7 +756,7 @@
       const container = document.getElementById('hotspot-container');
       container.innerHTML = '';
 
-      const floorAssets = activosData.filter(a => a.floor === currentFloor);
+      const floorAssets = activosData.filter(asset => `Piso ${asset.piso}` === currentFloor);
       document.getElementById('total-floor-boxes').innerText = floorAssets.length;
 
       floorAssets.forEach(asset => {
@@ -648,17 +765,20 @@
         let statusClass = 'status-active';
         if (asset.status === 'SOLO_UNIFI_NO_AD') statusClass = 'status-warning';
         if (asset.status === 'SOLO_AD_INACTIVO') statusClass = 'status-danger';
+        if (asset.status === 'BORRADOR') statusClass = 'status-draft';
 
-        const isSelected = asset.id === selectedBoxId;
+        const isSelected = asset.box_id === selectedBoxId;
 
         hotspot.className = `box-hotspot ${statusClass} ${isSelected ? 'selected' : ''}`;
-        hotspot.style.top = `${asset.top}%`;
-        hotspot.style.left = `${asset.left}%`;
-        hotspot.style.width = `${asset.width}%`;
-        hotspot.style.height = `${asset.height}%`;
-        hotspot.dataset.boxId = asset.id;
-        hotspot.title = `${asset.id} - ${asset.hostname || 'N/D'}`;
-        hotspot.innerText = asset.id.replace('BOX-', '');
+        hotspot.style.top = `${asset.top_pct}%`;
+        hotspot.style.left = `${asset.left_pct}%`;
+        hotspot.style.width = `${asset.width_pct}%`;
+        hotspot.style.height = `${asset.height_pct}%`;
+        hotspot.dataset.boxId = asset.box_id;
+        hotspot.title = `${asset.box_id} - ${asset.hostname_actual || 'N/D'}`;
+        hotspot.innerText = asset.box_id.replace('BOX-', '');
+        hotspot.tabIndex = 0;
+        hotspot.setAttribute('aria-label', `${asset.box_id}, ${asset.status}`);
 
         // Add resize handle for calibration mode
         const resizeHandle = document.createElement('div');
@@ -668,7 +788,7 @@
         // Click Event
         hotspot.addEventListener('click', (e) => {
           e.stopPropagation();
-          selectHotspot(asset.id);
+          selectHotspot(asset.box_id);
         });
 
         // Draggable setup if calibration enabled
@@ -705,24 +825,24 @@
         return;
       }
 
-      const asset = activosData.find(a => a.id === selectedBoxId);
+      const asset = activosData.find(item => item.box_id === selectedBoxId);
       if (!asset) return;
 
       emptyPanel.classList.add('hidden');
       detailsPanel.classList.remove('hidden');
 
-      document.getElementById('edit-box-id').value = asset.id;
-      document.getElementById('edit-hostname').value = asset.hostname || '';
-      document.getElementById('edit-new-hostname').value = asset.newHostname || '';
-      document.getElementById('edit-ip').value = asset.ip || '';
-      document.getElementById('edit-mac').value = asset.mac || '';
-      document.getElementById('edit-port').value = asset.port || '';
-      document.getElementById('edit-os').value = asset.os || 'N/D';
+      document.getElementById('edit-box-id').value = asset.box_id;
+      document.getElementById('edit-hostname').value = asset.hostname_actual || '';
+      document.getElementById('edit-new-hostname').value = asset.hostname_propuesto || '';
+      document.getElementById('edit-ip').value = asset.ip_address || '';
+      document.getElementById('edit-mac').value = asset.mac_address || '';
+      document.getElementById('edit-port').value = asset.switch_connection || '';
+      document.getElementById('edit-os').value = asset.operating_system || 'N/D';
 
-      document.getElementById('edit-top').value = asset.top;
-      document.getElementById('edit-left').value = asset.left;
-      document.getElementById('edit-width').value = asset.width;
-      document.getElementById('edit-height').value = asset.height;
+      document.getElementById('edit-top').value = asset.top_pct;
+      document.getElementById('edit-left').value = asset.left_pct;
+      document.getElementById('edit-width').value = asset.width_pct;
+      document.getElementById('edit-height').value = asset.height_pct;
 
       const badge = document.getElementById('detail-status-badge');
       badge.innerText = asset.status;
@@ -730,65 +850,121 @@
         badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
       } else if (asset.status === 'SOLO_UNIFI_NO_AD') {
         badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-amber-950 text-amber-400 border border-amber-800';
+      } else if (asset.status === 'BORRADOR') {
+        badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-slate-800 text-slate-300 border border-slate-600';
       } else {
         badge.className = 'px-2 py-0.5 text-[10px] rounded font-bold bg-rose-950 text-rose-400 border border-rose-800';
       }
     }
 
+    function readCoordinateInput(id) {
+      const value = document.getElementById(id).value.trim();
+      return value === '' ? Number.NaN : Number(value);
+    }
+
+    function validGeometry(top, left, width, height) {
+      return [top, left, width, height].every(value => Number.isFinite(value) && value >= 0 && value <= 100)
+        && width > 0
+        && height > 0
+        && top + height <= 100
+        && left + width <= 100;
+    }
+
     function saveActivePanelChanges() {
       if (!selectedBoxId) return;
-      const asset = activosData.find(a => a.id === selectedBoxId);
+      const asset = activosData.find(item => item.box_id === selectedBoxId);
       if (!asset) return;
 
-      asset.id = document.getElementById('edit-box-id').value.trim();
-      asset.hostname = document.getElementById('edit-hostname').value.trim();
-      asset.newHostname = document.getElementById('edit-new-hostname').value.trim();
-      asset.ip = document.getElementById('edit-ip').value.trim();
-      asset.mac = document.getElementById('edit-mac').value.trim();
-      asset.port = document.getElementById('edit-port').value.trim();
-      asset.os = document.getElementById('edit-os').value;
+      const hostname = document.getElementById('edit-hostname').value.trim();
+      const proposedHostname = document.getElementById('edit-new-hostname').value.trim();
+      const isDraft = asset.status === 'BORRADOR';
+      if ((!isValidHostname(hostname) && !(isDraft && hostname === 'N/D'))
+        || (!isValidHostname(proposedHostname) && !(isDraft && proposedHostname === 'N/D'))) {
+        alert('Los hostnames deben tener hasta 15 caracteres alfanuméricos o guiones, sin guion al inicio o al final.');
+        return;
+      }
 
-      asset.top = parseFloat(document.getElementById('edit-top').value) || asset.top;
-      asset.left = parseFloat(document.getElementById('edit-left').value) || asset.left;
-      asset.width = parseFloat(document.getElementById('edit-width').value) || asset.width;
-      asset.height = parseFloat(document.getElementById('edit-height').value) || asset.height;
+      const boxId = document.getElementById('edit-box-id').value.trim();
+      if (!boxId || activosData.some(item => item !== asset && item.box_id === boxId)) {
+        alert('El identificador del box no puede estar vacío ni duplicado.');
+        return;
+      }
 
-      selectedBoxId = asset.id;
+      const top = readCoordinateInput('edit-top');
+      const left = readCoordinateInput('edit-left');
+      const width = readCoordinateInput('edit-width');
+      const height = readCoordinateInput('edit-height');
+      if (!validGeometry(top, left, width, height)) {
+        alert('Coordenadas inválidas: top/left deben estar entre 0 y 100 y el box debe quedar dentro del plano.');
+        return;
+      }
+
+      asset.box_id = boxId;
+      asset.hostname_actual = hostname;
+      asset.hostname_propuesto = proposedHostname;
+      asset.ip_address = document.getElementById('edit-ip').value.trim();
+      asset.mac_address = document.getElementById('edit-mac').value.trim();
+      asset.switch_connection = document.getElementById('edit-port').value.trim();
+      asset.operating_system = document.getElementById('edit-os').value || 'N/D';
+      asset.top_pct = top;
+      asset.left_pct = left;
+      asset.width_pct = width;
+      asset.height_pct = height;
+
+      selectedBoxId = asset.box_id;
       renderFloorplanHotspots();
+      populateOsFilterDropdown();
+      renderMergeTable();
       updateJsonPreview();
     }
 
     function addNewHotspot() {
-      const nextIndex = activosData.length + 101;
+      const usedBoxIds = new Set(activosData.map(asset => asset.box_id));
+      const existingNumbers = activosData
+        .map(asset => /^BOX-(\d+)$/.exec(asset.box_id))
+        .filter(Boolean)
+        .map(match => Number(match[1]));
+      let nextIndex = Math.max(0, ...existingNumbers) + 1;
+      while (usedBoxIds.has(`BOX-${nextIndex}`)) nextIndex += 1;
       const newBox = {
-        id: `BOX-${nextIndex}`,
-        floor: currentFloor,
-        top: 40.0,
-        left: 40.0,
-        width: 3.5,
-        height: 4.2,
-        hostname: `PCB-${nextIndex}T`,
-        newHostname: `P${currentFloor.includes('5') ? '05' : '17'}-BOX${nextIndex}`,
-        ip: `192.168.1.${Math.floor(Math.random() * 100) + 100}`,
-        mac: `00:11:22:33:${Math.floor(Math.random()*89+10)}:${Math.floor(Math.random()*89+10)}`,
-        port: "USW-48-G2 [Port Auto]",
-        os: "Windows 11 Pro",
-        status: "VERIFICADO_ACTIVO"
+        box_id: `BOX-${nextIndex}`,
+        piso: Number(currentFloor.replace('Piso ', '')),
+        top_pct: 40.0,
+        left_pct: 40.0,
+        width_pct: 3.5,
+        height_pct: 4.2,
+        ip_address: 'N/D',
+        mac_address: 'N/D',
+        hostname_actual: 'N/D',
+        hostname_propuesto: 'N/D',
+        switch_connection: 'N/D',
+        operating_system: 'N/D',
+        status: 'BORRADOR'
       };
 
       activosData.push(newBox);
-      selectHotspot(newBox.id);
+      selectHotspot(newBox.box_id);
       renderFloorplanHotspots();
+      populateOsFilterDropdown();
+      renderMergeTable();
       updateJsonPreview();
     }
 
     function deleteSelectedHotspot() {
       if (!selectedBoxId) return;
-      activosData = activosData.filter(a => a.id !== selectedBoxId);
+      const asset = activosData.find(item => item.box_id === selectedBoxId);
+      if (!asset || !window.confirm(`¿Eliminar el activo ${asset.box_id} del plano? Esta acción solo afecta el estado local hasta exportar el JSON.`)) {
+        logOperationalEvent('asset.delete.cancelled');
+        return;
+      }
+      activosData = activosData.filter(asset => asset.box_id !== selectedBoxId);
       selectedBoxId = null;
       selectHotspot(null);
       renderFloorplanHotspots();
+      populateOsFilterDropdown();
+      renderMergeTable();
       updateJsonPreview();
+      logOperationalEvent('asset.delete.confirmed', { recordCount: activosData.length });
     }
 
     function toggleCalibrationMode(enabled) {
@@ -802,83 +978,99 @@
       renderFloorplanHotspots();
     }
 
+    function manejarTecladoCalibracion(event) {
+      const activeElement = document.activeElement;
+      if (event.key.toLowerCase() === 'c'
+        && !['INPUT', 'SELECT', 'TEXTAREA'].includes(activeElement.tagName)) {
+        const toggle = document.getElementById('calibration-toggle');
+        toggle.checked = !toggle.checked;
+        toggleCalibrationMode(toggle.checked);
+        return;
+      }
+      if (!isCalibrationMode || !activeElement.classList.contains('box-hotspot')) return;
+
+      const movement = event.shiftKey ? 1 : 0.1;
+      const deltas = {
+        ArrowUp: [-movement, 0],
+        ArrowDown: [movement, 0],
+        ArrowLeft: [0, -movement],
+        ArrowRight: [0, movement]
+      }[event.key];
+      if (!deltas) return;
+
+      const asset = activosData.find(item => item.box_id === activeElement.dataset.boxId);
+      if (!asset) return;
+      event.preventDefault();
+      asset.top_pct = Number(Math.min(Math.max(asset.top_pct + deltas[0], 0), 100 - asset.height_pct).toFixed(2));
+      asset.left_pct = Number(Math.min(Math.max(asset.left_pct + deltas[1], 0), 100 - asset.width_pct).toFixed(2));
+      activeElement.style.top = `${asset.top_pct}%`;
+      activeElement.style.left = `${asset.left_pct}%`;
+      if (asset.box_id === selectedBoxId) updateSidebarPanel();
+      updateJsonPreview();
+    }
+
+    document.addEventListener('keydown', manejarTecladoCalibracion);
+
     /* Calibrator Mouse Drag & Resize */
     function makeElementDraggableAndResizable(elmnt, asset) {
-      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
       const parent = document.getElementById('hotspot-container');
+      let activePointerId = null;
+      let dragMode = 'move';
+      let startX = 0;
+      let startY = 0;
+      let startTop = 0;
+      let startLeft = 0;
+      let startWidth = 0;
+      let startHeight = 0;
 
-      elmnt.onmousedown = dragMouseDown;
+      elmnt.addEventListener('pointerdown', startPointer);
+      elmnt.addEventListener('pointermove', movePointer);
+      elmnt.addEventListener('pointerup', finishPointer);
+      elmnt.addEventListener('pointercancel', finishPointer);
 
-      function dragMouseDown(e) {
-        if (e.target.classList.contains('resize-handle')) {
-          initResize(e);
-          return;
+      function startPointer(event) {
+        if (!isCalibrationMode || (event.pointerType === 'mouse' && event.button !== 0)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        activePointerId = event.pointerId;
+        dragMode = event.target.classList.contains('resize-handle') ? 'resize' : 'move';
+        startX = event.clientX;
+        startY = event.clientY;
+        startTop = asset.top_pct;
+        startLeft = asset.left_pct;
+        startWidth = asset.width_pct;
+        startHeight = asset.height_pct;
+        elmnt.setPointerCapture(activePointerId);
+      }
+
+      function movePointer(event) {
+        if (activePointerId !== event.pointerId) return;
+        event.preventDefault();
+        const parentRect = parent.getBoundingClientRect();
+        if (!parentRect.width || !parentRect.height) return;
+        const deltaX = ((event.clientX - startX) / parentRect.width) * 100;
+        const deltaY = ((event.clientY - startY) / parentRect.height) * 100;
+
+        if (dragMode === 'move') {
+          asset.top_pct = Number(Math.min(Math.max(startTop + deltaY, 0), 100 - asset.height_pct).toFixed(2));
+          asset.left_pct = Number(Math.min(Math.max(startLeft + deltaX, 0), 100 - asset.width_pct).toFixed(2));
+          elmnt.style.top = `${asset.top_pct}%`;
+          elmnt.style.left = `${asset.left_pct}%`;
+        } else {
+          const maximumWidth = 100 - asset.left_pct;
+          const maximumHeight = 100 - asset.top_pct;
+          asset.width_pct = Number(Math.min(Math.max(startWidth + deltaX, Math.min(1.5, maximumWidth)), maximumWidth).toFixed(2));
+          asset.height_pct = Number(Math.min(Math.max(startHeight + deltaY, Math.min(1.5, maximumHeight)), maximumHeight).toFixed(2));
+          elmnt.style.width = `${asset.width_pct}%`;
+          elmnt.style.height = `${asset.height_pct}%`;
         }
-        e.preventDefault();
-        pos3 = e.clientX;
-        pos4 = e.clientY;
-        document.onmouseup = closeDragElement;
-        document.onmousemove = elementDrag;
+
+        if (asset.box_id === selectedBoxId) updateSidebarPanel();
       }
 
-      function elementDrag(e) {
-        e.preventDefault();
-        pos1 = pos3 - e.clientX;
-        pos2 = pos4 - e.clientY;
-        pos3 = e.clientX;
-        pos4 = e.clientY;
-
-        const parentRect = parent.getBoundingClientRect();
-        let newTopPx = elmnt.offsetTop - pos2;
-        let newLeftPx = elmnt.offsetLeft - pos1;
-
-        let topPct = (newTopPx / parentRect.height) * 100;
-        let leftPct = (newLeftPx / parentRect.width) * 100;
-
-        topPct = Math.max(0, Math.min(topPct, 95));
-        leftPct = Math.max(0, Math.min(leftPct, 95));
-
-        asset.top = parseFloat(topPct.toFixed(2));
-        asset.left = parseFloat(leftPct.toFixed(2));
-
-        elmnt.style.top = `${asset.top}%`;
-        elmnt.style.left = `${asset.left}%`;
-
-        updateSidebarPanel();
-      }
-
-      function closeDragElement() {
-        document.onmouseup = null;
-        document.onmousemove = null;
-        updateJsonPreview();
-      }
-
-      function initResize(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        document.onmousemove = startResizing;
-        document.onmouseup = stopResizing;
-      }
-
-      function startResizing(e) {
-        const parentRect = parent.getBoundingClientRect();
-        const elmntRect = elmnt.getBoundingClientRect();
-
-        let newWidthPct = ((e.clientX - elmntRect.left) / parentRect.width) * 100;
-        let newHeightPct = ((e.clientY - elmntRect.top) / parentRect.height) * 100;
-
-        asset.width = Math.max(1.5, parseFloat(newWidthPct.toFixed(2)));
-        asset.height = Math.max(1.5, parseFloat(newHeightPct.toFixed(2)));
-
-        elmnt.style.width = `${asset.width}%`;
-        elmnt.style.height = `${asset.height}%`;
-
-        updateSidebarPanel();
-      }
-
-      function stopResizing() {
-        document.onmousemove = null;
-        document.onmouseup = null;
+      function finishPointer(event) {
+        if (activePointerId !== event.pointerId) return;
+        activePointerId = null;
         updateJsonPreview();
       }
     }
@@ -889,20 +1081,20 @@
        ========================================================================== */
     function renderMergeTable() {
       const tbody = document.getElementById('merge-table-body');
-      tbody.innerHTML = '';
+      tbody.replaceChildren();
 
       const searchVal = document.getElementById('merge-search').value.toLowerCase();
       const statusFilter = document.getElementById('filter-status').value;
       const osFilter = document.getElementById('filter-os').value;
 
-      let filtered = mergeData.filter(item => {
-        const matchesSearch = (item.id && item.id.toLowerCase().includes(searchVal)) ||
-                              (item.hostname && item.hostname.toLowerCase().includes(searchVal)) ||
-                              (item.ip && item.ip.toLowerCase().includes(searchVal)) ||
-                              (item.mac && item.mac.toLowerCase().includes(searchVal));
+      let filtered = activosData.filter(item => {
+        const matchesSearch = (item.box_id && item.box_id.toLowerCase().includes(searchVal)) ||
+                              (item.hostname_actual && item.hostname_actual.toLowerCase().includes(searchVal)) ||
+                              (item.ip_address && item.ip_address.toLowerCase().includes(searchVal)) ||
+                              (item.mac_address && item.mac_address.toLowerCase().includes(searchVal));
 
         const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter;
-        const matchesOs = osFilter === 'ALL' || item.os === osFilter;
+        const matchesOs = osFilter === 'ALL' || item.operating_system === osFilter;
 
         return matchesSearch && matchesStatus && matchesOs;
       });
@@ -919,40 +1111,103 @@
         return 0;
       });
 
+      const pageCount = Math.max(1, Math.ceil(filtered.length / MERGE_PAGE_SIZE));
+      currentMergePage = Math.min(Math.max(currentMergePage, 0), pageCount - 1);
+      const startIndex = currentMergePage * MERGE_PAGE_SIZE;
+      const visibleItems = filtered.slice(startIndex, startIndex + MERGE_PAGE_SIZE);
       document.getElementById('merge-count').innerText = filtered.length;
-      document.getElementById('merge-total').innerText = mergeData.length;
+      document.getElementById('merge-total').innerText = activosData.length;
+      document.getElementById('merge-page-range').textContent = filtered.length
+        ? `${startIndex + 1}-${startIndex + visibleItems.length} visibles`
+        : '0 visibles';
+      document.getElementById('merge-page-indicator').textContent = `${currentMergePage + 1} / ${pageCount}`;
+      document.getElementById('merge-prev-page').disabled = currentMergePage === 0;
+      document.getElementById('merge-next-page').disabled = currentMergePage >= pageCount - 1;
 
-      filtered.forEach(row => {
+      const fragment = document.createDocumentFragment();
+      visibleItems.forEach(row => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-slate-800/40 transition-colors";
 
         let ledColor = "led-green";
-        let statusBadge = `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800/50 px-2 py-0.5 rounded text-[10px] font-bold">VERIFICADO_ACTIVO</span>`;
+        let badgeClass = 'bg-emerald-950 text-emerald-400 border-emerald-800/50';
+        let statusLabel = 'VERIFICADO_ACTIVO';
         if (row.status === 'SOLO_UNIFI_NO_AD') {
           ledColor = "led-yellow";
-          statusBadge = `<span class="bg-amber-950 text-amber-400 border border-amber-800/50 px-2 py-0.5 rounded text-[10px] font-bold">SOLO_UNIFI_NO_AD</span>`;
+          badgeClass = 'bg-amber-950 text-amber-400 border-amber-800/50';
+          statusLabel = 'SOLO_UNIFI_NO_AD';
         } else if (row.status === 'SOLO_AD_INACTIVO') {
           ledColor = "led-red";
-          statusBadge = `<span class="bg-rose-950 text-rose-400 border border-rose-800/50 px-2 py-0.5 rounded text-[10px] font-bold">SOLO_AD_INACTIVO</span>`;
+          badgeClass = 'bg-rose-950 text-rose-400 border-rose-800/50';
+          statusLabel = 'SOLO_AD_INACTIVO';
+        } else if (row.status === 'AMBIGUO') {
+          ledColor = "led-red";
+          badgeClass = 'bg-rose-950 text-rose-400 border-rose-800/50';
+          statusLabel = 'AMBIGUO';
+        } else if (row.status === 'BORRADOR') {
+          ledColor = 'led-gray';
+          badgeClass = 'bg-slate-800 text-slate-300 border-slate-600';
+          statusLabel = 'BORRADOR';
         }
 
-        tr.innerHTML = `
-          <td class="py-3 px-4 text-center"><span class="led-dot ${ledColor}"></span></td>
-          <td class="py-3 px-4 text-cyan-300 font-bold">${row.id}</td>
-          <td class="py-3 px-4 text-slate-200">${row.hostname || 'N/D'}</td>
-          <td class="py-3 px-4 text-slate-300">${row.ip || 'N/D'}</td>
-          <td class="py-3 px-4 text-slate-400">${row.mac || 'N/D'}</td>
-          <td class="py-3 px-4 text-slate-400">${row.port || 'N/D'}</td>
-          <td class="py-3 px-4 text-slate-300">${row.os || 'N/D'}</td>
-          <td class="py-3 px-4">${statusBadge}</td>
-          <td class="py-3 px-4 text-center">
-            <button onclick="gestionarActivoDesdeMerge('${String(row.id).replace(/'/g, "\\'")}')" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all">
-              ${activoEnPlano(row) ? 'Ver en Plano' : '+ Asignar a Plano'}
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
+        const statusCell = document.createElement('td');
+        statusCell.className = 'py-3 px-4 text-center';
+        const led = document.createElement('span');
+        led.className = `led-dot ${ledColor}`;
+        statusCell.appendChild(led);
+        tr.appendChild(statusCell);
+
+        [
+          { value: row.box_id, className: 'py-3 px-4 text-cyan-300 font-bold' },
+          { value: row.hostname_actual || 'N/D', className: 'py-3 px-4 text-slate-200' },
+          { value: row.ip_address || 'N/D', className: 'py-3 px-4 text-slate-300' },
+          { value: row.mac_address || 'N/D', className: 'py-3 px-4 text-slate-400' },
+          { value: row.switch_connection || 'N/D', className: 'py-3 px-4 text-slate-400' },
+          { value: row.operating_system || 'N/D', className: 'py-3 px-4 text-slate-300' }
+        ].forEach(({ value, className }) => {
+          const cell = document.createElement('td');
+          cell.className = className;
+          cell.textContent = value;
+          tr.appendChild(cell);
+        });
+
+        const statusBadgeCell = document.createElement('td');
+        statusBadgeCell.className = 'py-3 px-4';
+        const statusBadge = document.createElement('span');
+        statusBadge.className = `${badgeClass} border px-2 py-0.5 rounded text-[10px] font-bold`;
+        statusBadge.textContent = statusLabel;
+        statusBadgeCell.appendChild(statusBadge);
+        tr.appendChild(statusBadgeCell);
+
+        const actionCell = document.createElement('td');
+        actionCell.className = 'py-3 px-4 text-center';
+        const actionButton = document.createElement('button');
+        actionButton.className = 'bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all';
+        actionButton.textContent = 'Ver en Plano';
+        actionButton.addEventListener('click', () => gestionarActivoDesdeMerge(row.box_id));
+        actionCell.appendChild(actionButton);
+        tr.appendChild(actionCell);
+        fragment.appendChild(tr);
       });
+      tbody.appendChild(fragment);
+    }
+
+    function programarRenderMergeTable() {
+      window.clearTimeout(mergeSearchTimer);
+      mergeSearchTimer = window.setTimeout(() => {
+        currentMergePage = 0;
+        renderMergeTable();
+      }, 180);
+    }
+
+    function resetearPaginaMerge() {
+      currentMergePage = 0;
+      renderMergeTable();
+    }
+
+    function cambiarPaginaMerge(delta) {
+      currentMergePage += delta;
+      renderMergeTable();
     }
 
     function sortTable(columnKey) {
@@ -969,7 +1224,7 @@
       const select = document.getElementById('filter-os');
       select.innerHTML = '<option value="ALL">Todos los Sistemas Operativos</option>';
       
-      const osList = [...new Set(mergeData.map(a => a.os || 'N/D'))];
+      const osList = [...new Set(activosData.map(asset => asset.operating_system || 'N/D'))];
       osList.forEach(os => {
         const opt = document.createElement('option');
         opt.value = os;
@@ -979,11 +1234,11 @@
     }
 
     function selectAndGoToMap(boxId) {
-      const asset = activosData.find(a => a.id === boxId);
+      const asset = activosData.find(item => item.box_id === boxId);
       if (asset) {
-        changeFloor(asset.floor);
-        document.getElementById('floor-select').value = asset.floor;
-        selectHotspot(asset.id);
+        changeFloor(`Piso ${asset.piso}`);
+        document.getElementById('floor-select').value = `Piso ${asset.piso}`;
+        selectHotspot(asset.box_id);
       }
       switchTab('plano');
     }
@@ -998,79 +1253,169 @@
 
     function obtenerActivoPlano(row) {
       return activosData.find(asset => [
-        [asset.id, row.id],
-        [asset.ip, row.ip],
-        [asset.mac, row.mac]
+        [asset.box_id, row.box_id],
+        [asset.ip_address, row.ip_address],
+        [asset.mac_address, row.mac_address]
       ].some(([assetValue, rowValue]) => assetValue && rowValue && normalizarValor(assetValue) === normalizarValor(rowValue)));
     }
 
     function gestionarActivoDesdeMerge(rowId) {
-      const row = mergeData.find(asset => asset.id === rowId);
+      const row = activosData.find(asset => asset.box_id === rowId);
       if (!row) return;
-      const asset = obtenerActivoPlano(row);
-      if (asset) {
-        selectAndGoToMap(asset.id);
-        return;
-      }
-      asignarActivoDesdeMerge(row);
-    }
-
-    function asignarActivoDesdeMerge(row) {
-      const floor = row.floor || currentFloor;
-      const newAsset = {
-        id: row.id && row.id !== 'N/D' ? row.id : `BOX-${activosData.length + 1}`,
-        floor,
-        top: 40,
-        left: 40,
-        width: 3.2,
-        height: 3.8,
-        hostname: row.hostname || 'N/D',
-        newHostname: row.newHostname || row.hostname || 'N/D',
-        ip: row.ip || 'N/D',
-        mac: row.mac || 'N/D',
-        port: row.port || 'N/D',
-        os: row.os || 'N/D',
-        status: row.status || 'SOLO_UNIFI_NO_AD'
-      };
-      activosData.push(newAsset);
-      mergeData = mergeData.map(item => item.id === row.id ? { ...item, ...newAsset } : item);
-      selectedBoxId = newAsset.id;
-      changeFloor(floor);
-      document.getElementById('floor-select').value = floor;
-      renderFloorplanHotspots();
-      updateSidebarPanel();
-      updateJsonPreview();
-      switchTab('plano');
+      selectAndGoToMap(row.box_id);
     }
 
     /* Flexible CSV Delimiter & Headers Parser */
-    function handleCsvUpload(event, type) {
-      const file = event.target.files[0];
+    function handleCsvUpload(event, type, isRetry = false) {
+      const input = event.target;
+      const file = input.files[0];
       if (!file) return;
 
+      const previousRows = type === 'unifi' ? unifiCsvRows : adCsvRows;
+      if (previousRows && !isRetry && !window.confirm('Reemplazar este CSV descarta su importación validada actual. ¿Continuar?')) {
+        input.value = '';
+        logOperationalEvent('csv.replacement.cancelled', { source: type });
+        return;
+      }
+
+      if (file.size > MAX_CSV_SIZE_BYTES) {
+        mostrarEstadoCsv(type, `Archivo demasiado grande: máximo ${MAX_CSV_SIZE_BYTES / 1024 / 1024} MB.`, true);
+        input.value = '';
+        logOperationalEvent('csv.read.rejected', { source: type, errorType: 'FileTooLarge' });
+        return;
+      }
+
       const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        parseAndMergeCsv(content, type, file.name);
+      const startedAt = performance.now();
+      mostrarEstadoCsv(type, 'Leyendo archivo CSV…', false, true);
+      actualizarEstadoCruce('Leyendo y validando los archivos…', false, true);
+      reader.onload = () => {
+        window.setTimeout(() => procesarCsvLeido(reader.result, type, input, startedAt), 0);
+      };
+      reader.onerror = () => {
+        mostrarEstadoCsv(type, 'No se pudo leer el archivo. La importación anterior se conserva.', true, false, true);
+        actualizarEstadoCruce('Falló la lectura. Reintentá o seleccioná otro CSV.', true);
+        logOperationalEvent('csv.read.error', { source: type, errorType: reader.error?.name || 'ReadError' });
+      };
+      reader.onabort = () => {
+        mostrarEstadoCsv(type, 'Lectura cancelada. La importación anterior se conserva.', true, false, true);
+        logOperationalEvent('csv.read.aborted', { source: type });
       };
       reader.readAsText(file);
     }
 
-    function parseAndMergeCsv(text, type, filename) {
-      const rows = parseCsvRows(text);
-      if (!rows.length) return;
+    function reintentarCargaCsv(type) {
+      const input = document.getElementById(type === 'unifi' ? 'csv-unifi-input' : 'csv-ad-input');
+      if (!input.files.length) {
+        mostrarEstadoCsv(type, 'Seleccioná nuevamente el archivo para reintentar.', true);
+        return;
+      }
+      handleCsvUpload({ target: input }, type, true);
+    }
 
-      if (type === 'unifi') {
-        unifiCsvRows = rows;
-        document.getElementById('unifi-file-status').innerText = `Cargado: ${filename} (${rows.length} registros)`;
-        document.getElementById('unifi-file-status').className = 'text-[11px] text-emerald-400 font-semibold';
-      } else {
-        adCsvRows = rows;
-        document.getElementById('ad-file-status').innerText = `Cargado: ${filename} (${rows.length} registros)`;
-        document.getElementById('ad-file-status').className = 'text-[11px] text-emerald-400 font-semibold';
+    function procesarCsvLeido(content, type, input, startedAt) {
+      try {
+        actualizarEstadoCruce('Validando columnas y filas del CSV…', false, true);
+        const rows = parseCsvRows(String(content || ''));
+        validarColumnasCsv(rows, type);
+        if (type === 'unifi') unifiCsvRows = rows;
+        else adCsvRows = rows;
+
+        mostrarEstadoCsv(type, `CSV validado: ${rows.length} filas.`, false);
+        logOperationalEvent('csv.read.success', {
+          source: type,
+          recordCount: rows.length,
+          durationMs: Math.round(performance.now() - startedAt)
+        });
+
+        if (unifiCsvRows && adCsvRows) {
+          document.getElementById('merge-apply-button').classList.remove('hidden');
+          actualizarEstadoCruce(`UniFi: ${unifiCsvRows.length} filas; AD: ${adCsvRows.length} filas. Revisá y aplicá el cruce.`);
+        } else {
+          actualizarEstadoCruce(`CSV ${type} validado; falta el otro archivo.`);
+        }
+      } catch (error) {
+        input.value = '';
+        mostrarEstadoCsv(type, `Error de validación: ${error.message}`, true);
+        actualizarEstadoCruce('El CSV no se aceptó; cualquier importación anterior sigue vigente.', true);
+        logOperationalEvent('csv.validation.error', { source: type, errorType: error.name || 'ValidationError' });
+      }
+    }
+
+    function mostrarEstadoCsv(type, message, isError = false, isLoading = false, canRetry = false) {
+      const element = document.getElementById(type === 'unifi' ? 'unifi-file-status' : 'ad-file-status');
+      const retryButton = document.getElementById(type === 'unifi' ? 'retry-unifi-file' : 'retry-ad-file');
+      element.replaceChildren();
+      if (isLoading) {
+        const spinner = document.createElement('span');
+        spinner.className = 'loading-spinner mr-2 align-middle';
+        spinner.setAttribute('aria-hidden', 'true');
+        element.appendChild(spinner);
+      }
+      element.appendChild(document.createTextNode(message));
+      element.className = isError
+        ? 'text-[11px] text-rose-400 font-semibold'
+        : isLoading ? 'text-[11px] text-slate-300 font-semibold' : 'text-[11px] text-emerald-400 font-semibold';
+      retryButton.classList.toggle('hidden', !canRetry);
+    }
+
+    function actualizarEstadoCruce(message, isError = false, isLoading = false) {
+      const status = document.getElementById('merge-source-status');
+      status.replaceChildren();
+      if (isLoading) {
+        const spinner = document.createElement('span');
+        spinner.className = 'loading-spinner mr-2 align-middle';
+        spinner.setAttribute('aria-hidden', 'true');
+        status.appendChild(spinner);
+      }
+      status.appendChild(document.createTextNode(message));
+      status.className = isError
+        ? 'mt-3 text-xs text-rose-300'
+        : isLoading ? 'mt-3 text-xs text-slate-200' : 'mt-3 text-xs text-slate-400';
+    }
+
+    function confirmarAplicarCruce() {
+      if (isCrossProcessing || !unifiCsvRows || !adCsvRows) return;
+      const replaceCount = activosData.length;
+      if (!window.confirm(`Aplicar el cruce reemplazará los ${replaceCount} activos del estado actual. ¿Continuar?`)) {
+        logOperationalEvent('csv.merge.cancelled', { recordCount: replaceCount });
+        return;
       }
 
-      if (unifiCsvRows && adCsvRows) ejecutarCruceCSV();
+      const button = document.getElementById('merge-apply-button');
+      isCrossProcessing = true;
+      button.disabled = true;
+      actualizarEstadoCruce('Calculando correspondencias y ambigüedades…', false, true);
+      window.setTimeout(() => {
+        const startedAt = performance.now();
+        try {
+          ejecutarCruceCSV();
+          button.classList.add('hidden');
+          logOperationalEvent('csv.merge.applied', {
+            recordCount: activosData.length,
+            durationMs: Math.round(performance.now() - startedAt)
+          });
+        } catch (error) {
+          actualizarEstadoCruce('No se pudo aplicar el cruce. Los CSV siguen disponibles para reintentar.', true);
+          logOperationalEvent('csv.merge.error', { errorType: error.name || 'MergeError' });
+        } finally {
+          isCrossProcessing = false;
+          button.disabled = false;
+        }
+      });
+    }
+
+    function validarColumnasCsv(rows, source) {
+      if (!rows.length) throw new Error('el CSV no contiene filas de datos.');
+      const headers = new Set(Object.keys(rows[0]));
+      const required = source === 'unifi'
+        ? ['name', 'ip address', 'mac address', 'connection']
+        : ['hostname_actual'];
+      const missing = required.filter(header => !headers.has(normalizarHeaderCsv(header)));
+      if (missing.length) throw new Error(`faltan columnas requeridas: ${missing.join(', ')}.`);
+      if (source === 'ad' && !headers.has('ip_registrada_ad') && !headers.has('ip_resuelta_dns')) {
+        throw new Error('Active Directory requiere IP_Registrada_AD o IP_Resuelta_DNS.');
+      }
     }
 
     function parseCsvRows(text) {
@@ -1095,7 +1440,10 @@
         } else if ((character === '\n' || character === '\r') && !quoted) {
           if (character === '\r' && nextCharacter === '\n') index += 1;
           row.push(field.trim());
-          if (row.some(value => value !== '')) rows.push(row);
+          if (row.some(value => value !== '')) {
+            rows.push(row);
+            if (rows.length > MAX_CSV_ROWS + 1) throw new Error(`el CSV supera el límite de ${MAX_CSV_ROWS} filas.`);
+          }
           row = [];
           field = '';
         } else {
@@ -1104,15 +1452,25 @@
       }
       if (field || row.length) {
         row.push(field.trim());
-        if (row.some(value => value !== '')) rows.push(row);
+        if (row.some(value => value !== '')) {
+          rows.push(row);
+          if (rows.length > MAX_CSV_ROWS + 1) throw new Error(`el CSV supera el límite de ${MAX_CSV_ROWS} filas.`);
+        }
       }
-      if (rows.length < 2) return [];
+      if (quoted) throw new Error('hay un campo entrecomillado sin cerrar.');
+      if (rows.length < 2) throw new Error('el CSV no contiene filas de datos.');
 
       const headers = rows.shift().map(normalizarHeaderCsv);
-      return rows.map(values => headers.reduce((record, header, index) => {
-        record[header] = values[index] && values[index].trim() ? values[index].trim() : 'N/D';
-        return record;
-      }, {}));
+      if (headers.some(header => !header) || new Set(headers).size !== headers.length) {
+        throw new Error('los encabezados están vacíos o duplicados.');
+      }
+      return rows.map((values, rowIndex) => {
+        if (values.length !== headers.length) throw new Error(`la fila ${rowIndex + 2} tiene un número de columnas inválido.`);
+        return headers.reduce((record, header, index) => {
+          record[header] = values[index] && values[index].trim() ? values[index].trim() : 'N/D';
+          return record;
+        }, {});
+      });
     }
 
     function detectarDelimitadorCsv(text) {
@@ -1137,64 +1495,154 @@
       return value && value.trim() ? value.trim() : 'N/D';
     }
 
-    function ejecutarCruceCSV() {
-      const adByIp = new Map();
-      const adRowsMatched = new Set();
-      adCsvRows.forEach(row => {
-        [csvValue(row, 'IP_Registrada_AD'), csvValue(row, 'IP_Resuelta_DNS')]
-          .filter(ip => ip !== 'N/D')
-          .forEach(ip => adByIp.set(normalizarValor(ip), row));
+    function encontrarDuplicados(rows, getters) {
+      const rowsByValue = new Map();
+      rows.forEach(row => {
+        const keys = new Set(getters
+          .map(getter => normalizarValor(getter(row)))
+          .filter(value => value && value !== 'n/d'));
+        keys.forEach(key => {
+          if (!rowsByValue.has(key)) rowsByValue.set(key, []);
+          rowsByValue.get(key).push(row);
+        });
       });
 
-      const mergedAssets = unifiCsvRows.map(unifi => {
+      const duplicateRows = new Set();
+      const duplicateValues = [];
+      rowsByValue.forEach((matches, value) => {
+        if (matches.length < 2) return;
+        duplicateValues.push(value);
+        matches.forEach(row => duplicateRows.add(row));
+      });
+      return { rows: duplicateRows, values: duplicateValues };
+    }
+
+    function agregarIndice(index, key, row) {
+      const normalizedKey = normalizarValor(key);
+      if (!normalizedKey || normalizedKey === 'n/d') return;
+      if (!index.has(normalizedKey)) index.set(normalizedKey, []);
+      index.get(normalizedKey).push(row);
+    }
+
+    function buscarEnIndice(index, keys) {
+      const matches = new Set();
+      keys.forEach(key => {
+        const rows = index.get(normalizarValor(key)) || [];
+        rows.forEach(row => matches.add(row));
+      });
+      return [...matches];
+    }
+
+    function ejecutarCruceCSV() {
+      const adByIp = new Map();
+      const adByHostname = new Map();
+      const matchedAdRows = new Set();
+      const ambiguousAdRows = new Set();
+      const usedBoxIds = new Set();
+      mergeAmbiguities = [];
+
+      const duplicateUnifiIps = encontrarDuplicados(unifiCsvRows, [row => csvValue(row, 'IP Address')]);
+      const duplicateUnifiNames = encontrarDuplicados(unifiCsvRows, [row => csvValue(row, 'Name')]);
+      const duplicateAdIps = encontrarDuplicados(adCsvRows, [
+        row => csvValue(row, 'IP_Registrada_AD'),
+        row => csvValue(row, 'IP_Resuelta_DNS')
+      ]);
+      const duplicateAdHostnames = encontrarDuplicados(adCsvRows, [row => csvValue(row, 'Hostname_Actual')]);
+      [duplicateAdIps, duplicateAdHostnames].forEach(info => info.rows.forEach(row => ambiguousAdRows.add(row)));
+
+      [
+        ['IP UniFi', duplicateUnifiIps],
+        ['hostname UniFi', duplicateUnifiNames],
+        ['IP Active Directory', duplicateAdIps],
+        ['hostname Active Directory', duplicateAdHostnames]
+      ].forEach(([label, info]) => {
+        info.values.slice(0, 10).forEach(value => mergeAmbiguities.push(`${label} duplicado: ${value}`));
+      });
+
+      adCsvRows.forEach(row => {
+        agregarIndice(adByIp, csvValue(row, 'IP_Registrada_AD'), row);
+        agregarIndice(adByIp, csvValue(row, 'IP_Resuelta_DNS'), row);
+        agregarIndice(adByHostname, csvValue(row, 'Hostname_Actual'), row);
+      });
+
+      const mergedAssets = [];
+      unifiCsvRows.forEach(unifi => {
         const ip = csvValue(unifi, 'IP Address');
-        const ad = adByIp.get(normalizarValor(ip));
-        if (ad) adRowsMatched.add(ad);
-        const baseline = buscarActivoBase(ip, csvValue(unifi, 'Name'));
-        return crearActivoDesdeCruce(unifi, ad, baseline, ad ? 'VERIFICADO_ACTIVO' : 'SOLO_UNIFI_NO_AD');
+        const name = csvValue(unifi, 'Name');
+        const candidates = buscarEnIndice(adByIp, [ip]).concat(buscarEnIndice(adByHostname, [name]));
+        const uniqueCandidates = [...new Set(candidates)];
+        const ambiguous = duplicateUnifiIps.rows.has(unifi)
+          || duplicateUnifiNames.rows.has(unifi)
+          || uniqueCandidates.length > 1
+          || uniqueCandidates.some(row => ambiguousAdRows.has(row));
+        const ad = !ambiguous && uniqueCandidates.length === 1 ? uniqueCandidates[0] : null;
+        if (ambiguous) uniqueCandidates.forEach(row => ambiguousAdRows.add(row));
+        if (ad) matchedAdRows.add(ad);
+
+        const baseline = buscarActivoBase(ip, name);
+        const status = ambiguous ? 'AMBIGUO' : ad ? 'VERIFICADO_ACTIVO' : 'SOLO_UNIFI_NO_AD';
+        mergedAssets.push(crearActivoDesdeCruce(unifi, ad, baseline, status, usedBoxIds));
       });
 
       adCsvRows.forEach(ad => {
-        if (adRowsMatched.has(ad)) return;
+        if (matchedAdRows.has(ad)) return;
         const ip = csvValue(ad, 'IP_Registrada_AD') !== 'N/D'
           ? csvValue(ad, 'IP_Registrada_AD')
           : csvValue(ad, 'IP_Resuelta_DNS');
         const baseline = buscarActivoBase(ip, csvValue(ad, 'Hostname_Actual'));
-        mergedAssets.push(crearActivoDesdeCruce(null, ad, baseline, 'SOLO_AD_INACTIVO'));
+        const status = ambiguousAdRows.has(ad) ? 'AMBIGUO' : 'SOLO_AD_INACTIVO';
+        mergedAssets.push(crearActivoDesdeCruce(null, ad, baseline, status, usedBoxIds));
       });
 
-      mergeData = mergedAssets;
+      activosData = mergedAssets;
+      currentMergePage = 0;
       renderMergeTable();
       populateOsFilterDropdown();
       updateJsonPreview();
+      renderFloorplanHotspots();
+      const summary = `Cruce completado: ${mergedAssets.length} registros.`;
+      actualizarEstadoCruce(mergeAmbiguities.length
+        ? `${summary} Ambigüedades: ${mergeAmbiguities.join('; ')}`
+        : `${summary} Sin ambigüedades.`);
     }
 
     function buscarActivoBase(ip, name) {
-      return activosData.find(asset => normalizarValor(asset.ip) === normalizarValor(ip)
-        || normalizarValor(asset.id) === normalizarValor(name)) || {};
+      return activosData.find(asset => normalizarValor(asset.ip_address) === normalizarValor(ip)
+        || normalizarValor(asset.box_id) === normalizarValor(name)
+        || normalizarValor(asset.hostname_actual) === normalizarValor(name)) || {};
     }
 
-    function crearActivoDesdeCruce(unifi, ad, baseline, status) {
+    function crearActivoDesdeCruce(unifi, ad, baseline, status, usedBoxIds) {
       const name = unifi ? csvValue(unifi, 'Name') : 'N/D';
       const adHostname = ad ? csvValue(ad, 'Hostname_Actual') : 'N/D';
       const ip = unifi ? csvValue(unifi, 'IP Address') : csvValue(ad, 'IP_Registrada_AD');
+      const ipAddress = ip === 'N/D' ? csvValue(ad || {}, 'IP_Resuelta_DNS') : ip;
+      const requestedBoxId = baseline.box_id || (unifi && name !== 'N/D' ? name : adHostname !== 'N/D' ? adHostname : `AD-${ipAddress}`);
+      let boxId = requestedBoxId;
+      let suffix = 2;
+      while (usedBoxIds.has(boxId)) {
+        boxId = `${requestedBoxId}-${suffix}`;
+        suffix += 1;
+        status = 'AMBIGUO';
+      }
+      usedBoxIds.add(boxId);
       return {
         ...baseline,
-        id: baseline.id || (unifi && name !== 'N/D' ? name : adHostname !== 'N/D' ? adHostname : `AD-${ip}`),
-        hostname: adHostname,
-        newHostname: baseline.newHostname || adHostname,
-        ip: ip === 'N/D' ? csvValue(ad || {}, 'IP_Resuelta_DNS') : ip,
-        mac: unifi ? csvValue(unifi, 'MAC Address') : (baseline.mac || 'N/D'),
-        port: unifi ? csvValue(unifi, 'Connection') : (baseline.port || 'N/D'),
-        os: ad ? csvValue(ad, 'Sistema_Operativo') : (baseline.os || 'N/D'),
+        box_id: boxId,
+        piso: baseline.piso || Number(currentFloor.replace('Piso ', '')),
+        top_pct: baseline.top_pct ?? 50,
+        left_pct: baseline.left_pct ?? 50,
+        width_pct: baseline.width_pct ?? 3.5,
+        height_pct: baseline.height_pct ?? 4,
+        hostname_actual: adHostname,
+        hostname_propuesto: baseline.hostname_propuesto || adHostname,
+        ip_address: ipAddress,
+        mac_address: unifi ? csvValue(unifi, 'MAC Address') : (baseline.mac_address || 'N/D'),
+        switch_connection: unifi ? csvValue(unifi, 'Connection') : (baseline.switch_connection || 'N/D'),
+        operating_system: ad ? csvValue(ad, 'Sistema_Operativo') : (baseline.operating_system || 'N/D'),
         status
       };
     }
-
-    function normalizarValor(value) {
-      return String(value || '').trim().toLowerCase();
-    }
-
 
     /* ==========================================================================
        JSON & POWERSHELL EXPORTS
@@ -1228,23 +1676,51 @@
       URL.revokeObjectURL(url);
     }
 
+    function isValidHostname(hostname) {
+      return typeof hostname === 'string'
+        && hostname.length >= 1
+        && hostname.length <= 15
+        && /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,13}[A-Za-z0-9])?$/.test(hostname);
+    }
+
+    function toPowerShellLiteral(value) {
+      return `'${String(value).replace(/'/g, "''")}'`;
+    }
+
     function openPs1Modal() {
       const modal = document.getElementById('modal-ps1');
       const ps1Preview = document.getElementById('ps1-code-preview');
+      const pendingChanges = activosData.filter(asset =>
+        asset.status !== 'BORRADOR'
+          && asset.hostname_actual
+          && asset.hostname_propuesto
+          && asset.hostname_actual !== asset.hostname_propuesto
+      );
+
+      if (pendingChanges.length === 0) {
+        alert('No hay cambios pendientes para generar el script.');
+        return;
+      }
+      if (pendingChanges.some(asset =>
+        !isValidHostname(asset.hostname_actual) || !isValidHostname(asset.hostname_propuesto)
+      )) {
+        alert('No se generó el script: hay hostnames inválidos.');
+        return;
+      }
+      document.getElementById('ps1-script-scope').textContent = `Alcance: ${pendingChanges.length} cambios de hostname. Modo -WhatIf; sin cambios aplicados.`;
 
       let script = `# ========================================================\n`;
       script += `# SCRIPT DE RENOMBRADO AUTOMÁTICO EN ACTIVE DIRECTORY\n`;
       script += `# Generado el: ${new Date().toLocaleString()}\n`;
       script += `# ========================================================\n\n`;
 
-      activosData.forEach(asset => {
-        if (asset.hostname && asset.newHostname && asset.hostname !== asset.newHostname) {
-          script += `Rename-Computer -ComputerName "${asset.hostname}" -NewName "${asset.newHostname}" -DomainCredential (Get-Credential) -Force -Restart\n`;
-        }
+      pendingChanges.forEach(asset => {
+        script += `Rename-Computer -ComputerName ${toPowerShellLiteral(asset.hostname_actual)} -NewName ${toPowerShellLiteral(asset.hostname_propuesto)} -DomainCredential (Get-Credential) -Force -WhatIf\n`;
       });
 
       ps1Preview.innerText = script;
       modal.classList.remove('hidden');
+      logOperationalEvent('powershell.preview.generated', { changeCount: pendingChanges.length });
     }
 
     function closePs1Modal() {
@@ -1253,6 +1729,9 @@
 
     function downloadPs1Script() {
       const ps1Text = document.getElementById('ps1-code-preview').innerText;
+      logOperationalEvent('powershell.preview.downloaded', {
+        changeCount: (ps1Text.match(/Rename-Computer/g) || []).length
+      });
       const blob = new Blob([ps1Text], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

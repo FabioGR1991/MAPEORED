@@ -11,17 +11,21 @@ Desarrollar una aplicación web interactiva que funcione como un **Gemelo Digita
 * **UniFi Controller Export:** Datos de capa física (MAC Address, IP actual, Switch de origen, Puerto, Tráfico y Última conexión).
 * **Active Directory Export:** Datos de capa lógica (Hostname actual, OU, Sistema Operativo, IP en DNS, Estado).
 
-### 2. Estructura de Directorios
+### 2. Modo de Operación, Validación y Persistencia
+* MAPEORED procesa los CSV localmente en el navegador y no establece conexión en vivo con UniFi o Active Directory. No hay backend, autenticación ni sincronización multiusuario.
+* `data/activos_mapeados.json` es la fuente canónica. La UI valida esquema y geometría al cargar; cada CSV se limita a 10 MiB y 50.000 filas, valida columnas y reporta duplicados como ambiguos antes de aplicar el cruce.
+* Las ediciones del navegador permanecen en memoria hasta que el operador descarga el JSON; la página no escribe automáticamente sobre el archivo local. `scripts/ingest.py` y `setup_proyecto.ps1` escriben mediante temporales validados, backups y reemplazo atómico; el scaffolder conserva el JSON existente salvo que se use `-ReplaceExistingData`.
+* El script PowerShell generado usa `-WhatIf`; su preview informa el número de cambios y no ejecuta ni reinicia equipos.
+* El tratamiento de inventario es local, pero la UI actual carga Tailwind, Font Awesome y fuentes desde CDNs; por ello la presentación completa aún necesita conectividad y no debe anunciarse como una distribución totalmente offline.
+* La telemetría del navegador contiene únicamente eventos y métricas agregadas; no registra IP, MAC, hostname, contenido CSV ni tokens.
+
+### 3. Estructura de Directorios
 ```text
 INFRA INTERACTIVA/
 ├── assets/
-│   ├── css/
-│   │   └── styles.css          # Estilos visuales del frontend y sidebar
-│   ├── images/
-│   │   ├── PISO 5.jpg          # Plano de arquitectura Piso 5 (82 boxes)
-│   │   └── PISO 17.jpg         # Plano de arquitectura Piso 17
-│   └── js/
-│       └── app.js              # Lógica de renderizado dinámico, eventos y exportación
+│   └── images/
+│       ├── PISO 5.jpg          # Plano de demostración Piso 5
+│       └── PISO 17.jpg         # Plano de demostración Piso 17
 ├── data/
 │   └── activos_mapeados.json   # Matriz Maestra en JSON (Unión de UniFi + AD + Coordenadas)
 ├── index.html                  # Dashboard principal interactivo
@@ -30,7 +34,7 @@ INFRA INTERACTIVA/
 
 🚀 Fases de Desarrollo
 🟢 Fase 1: Infraestructura Base & Frontend Interactivo (COMPLETADO)
-[x] Generación de la estructura modular de archivos (HTML5, CSS3, JS).
+[x] Interfaz interactiva en index.html con estado canónico validado en JSON.
 
 [x] Incorporación de los planos de planta en assets/images/.
 
@@ -75,4 +79,4 @@ Puesto 42 en Piso 5: P05-BOX042
 Puesto 12 en Piso 17: P17-BOX012
 
 🤖 Contexto para Agentes de IA (Antigravity / Copilot)
-Instrucción de lectura: Al trabajar sobre este proyecto, priorizar la modificación de data/activos_mapeados.json para ajustar coordenadas de cajas y mantener la lógica de renderizado responsivo en assets/js/app.js usando porcentajes CSS (%) en lugar de píxeles fijos (px).
+Instrucción de lectura: `data/activos_mapeados.json` es la fuente canónica de activos y coordenadas. La interfaz actual está en `index.html`; mantener el esquema (`box_id`, `piso`, `top_pct`, `left_pct`, `width_pct`, `height_pct`, `hostname_actual`, `hostname_propuesto`) y validar cualquier cambio de coordenadas dentro del plano.
