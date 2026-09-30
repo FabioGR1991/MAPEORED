@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" class="h-full bg-[#0d0f17] text-slate-200">
 <head>
   <meta charset="UTF-8">
@@ -688,7 +688,7 @@
       const container = document.getElementById('hotspot-layer');
       container.innerHTML = '';
 
-      const floorAssets = activosData.filter(asset => `Piso ${asset.piso}` === currentFloor);
+      const floorAssets = activosData.filter(asset => `Piso ${asset.piso}` === currentFloor && activoEnPlano(asset));
       document.getElementById('total-floor-boxes').innerText = floorAssets.length;
 
       floorAssets.forEach(asset => {
@@ -1114,9 +1114,49 @@
         const actionCell = document.createElement('td');
         actionCell.className = 'py-3 px-4 text-center';
         const actionButton = document.createElement('button');
-        actionButton.className = 'bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all';
-        actionButton.textContent = 'Ver en Plano';
-        actionButton.addEventListener('click', () => gestionarActivoDesdeMerge(row.box_id));
+
+        const isAssigned = activoEnPlano(row);
+
+        if (isAssigned) {
+          actionButton.className = 'bg-cyan-950 hover:bg-cyan-900 text-cyan-400 border border-cyan-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all';
+          actionButton.textContent = 'Ver en Plano';
+          actionButton.addEventListener('click', () => gestionarActivoDesdeMerge(row.box_id));
+        } else {
+          actionButton.className = 'bg-amber-950 hover:bg-amber-900 text-amber-400 border border-amber-800/60 px-2.5 py-1 rounded text-[11px] font-medium transition-all';
+          actionButton.textContent = 'Añadir al Plano +';
+          actionButton.addEventListener('click', () => {
+            const pisoElegido = window.prompt("Seleccionar piso para ubicar el activo en el plano:\n- Ingrese 5 para Piso 5\n- Ingrese 17 para Piso 17", "5");
+            if (pisoElegido !== null) {
+              const normalizado = pisoElegido.trim().replace(/^piso\s*/i, '');
+              const numPiso = Number(normalizado);
+              if (numPiso === 5 || numPiso === 17) {
+                const usedBoxIds = new Set(activosData.map(a => a.box_id));
+                const existingNumbers = activosData
+                  .map(a => /^BOX-(\d+)$/i.exec(a.box_id))
+                  .filter(Boolean)
+                  .map(m => Number(m[1]));
+                let nextIndex = Math.max(0, ...existingNumbers) + 1;
+                while (usedBoxIds.has(`BOX-${nextIndex}`)) nextIndex += 1;
+
+                row.box_id = `BOX-${nextIndex}`;
+                row.piso = numPiso;
+                row.top_pct = 40.0;
+                row.left_pct = 40.0;
+                row.width_pct = 3.5;
+                row.height_pct = 4.2;
+                row.en_plano = true;
+
+                renderFloorplanHotspots();
+                renderMergeTable();
+                updateJsonPreview();
+                selectAndGoToMap(row.box_id);
+              } else {
+                window.alert("Piso no válido. Por favor elija 5 o 17.");
+              }
+            }
+          });
+        }
+
         actionCell.appendChild(actionButton);
         tr.appendChild(actionCell);
         fragment.appendChild(tr);
@@ -1180,15 +1220,10 @@
     }
 
     function activoEnPlano(row) {
-      return Boolean(obtenerActivoPlano(row));
-    }
-
-    function obtenerActivoPlano(row) {
-      return activosData.find(asset => [
-        [asset.box_id, row.box_id],
-        [asset.ip_address, row.ip_address],
-        [asset.mac_address, row.mac_address]
-      ].some(([assetValue, rowValue]) => assetValue && rowValue && normalizarValor(assetValue) === normalizarValor(rowValue)));
+      if (!row) return false;
+      if (row.en_plano === true) return true;
+      if (row.en_plano === false) return false;
+      return typeof row.box_id === 'string' && /^BOX-\d+/i.test(row.box_id);
     }
 
     function gestionarActivoDesdeMerge(rowId) {
@@ -1539,9 +1574,17 @@
     }
 
     function buscarActivoBase(ip, name) {
-      return activosData.find(asset => normalizarValor(asset.ip_address) === normalizarValor(ip)
-        || normalizarValor(asset.box_id) === normalizarValor(name)
-        || normalizarValor(asset.hostname_actual) === normalizarValor(name)) || {};
+      const normIp = normalizarValor(ip);
+      const normName = normalizarValor(name);
+      return activosData.find(asset => {
+        const assetIp = normalizarValor(asset.ip_address);
+        const assetBox = normalizarValor(asset.box_id);
+        const assetHost = normalizarValor(asset.hostname_actual);
+        const matchIp = normIp && normIp !== 'n/d' && assetIp === normIp;
+        const matchBox = normName && normName !== 'n/d' && assetBox === normName;
+        const matchHost = normName && normName !== 'n/d' && assetHost === normName;
+        return matchIp || matchBox || matchHost;
+      }) || {};
     }
 
     function crearActivoDesdeCruce(unifi, ad, baseline, status, usedBoxIds) {
@@ -1558,6 +1601,7 @@
         status = 'AMBIGUO';
       }
       usedBoxIds.add(boxId);
+      const isBaselineMapped = Boolean(baseline.box_id && /^BOX-\d+/i.test(baseline.box_id) && baseline.top_pct != null);
       return {
         ...baseline,
         box_id: boxId,
@@ -1566,6 +1610,7 @@
         left_pct: baseline.left_pct ?? 50,
         width_pct: baseline.width_pct ?? 3.5,
         height_pct: baseline.height_pct ?? 4,
+        en_plano: isBaselineMapped,
         hostname_actual: adHostname,
         hostname_propuesto: baseline.hostname_propuesto || adHostname,
         ip_address: ipAddress,
